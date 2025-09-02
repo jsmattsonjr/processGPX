@@ -6,12 +6,13 @@ use Geo::Gpx;
 use Getopt::Long;
 use POSIX qw(floor);
 
-my $lat0 = 37.759572;
-my $lon0 = -122.334741;
-
 my $pi = atan2(0, -1);
 my $pi2 = $pi / 2;
 my $twopi = 2 * $pi;
+
+# Bonneville Salt Flats
+my $lon0 = -113.5; 
+my $lat0 = 40.789;
 
 sub softMax {
   my $x1 = shift() / 10;
@@ -35,6 +36,26 @@ sub xyDirection {
   return atan2( $p2->[1] - $p1->[1], $p2->[0] -$p1->[0] );
 }
 
+sub deltaAngle {
+  my $dir1 = shift;
+  my $dir2 = shift;
+  my $delta = $dir2 - $dir1;
+  $delta -= $twopi * floor(0.5 + $delta / $twopi);
+  return $delta;
+}
+
+sub xyCurvature {
+  my $p1 = shift;
+  my $p2 = shift;
+  my $p3 = shift;
+  my $dir1 = xyDirection($p1, $p2);
+  my $dir2 = xyDirection($p2, $p3);
+  my $d = (xyDistance($p1, $p2) + xyDistance($p2, $p3)) / 2;
+  die("ERROR calculating curvature: coincident points\n") if $d <= 0;
+  my $c = deltaAngle($dir1, $dir2) / $d;
+  return $c;
+}
+
 sub pointsColinear {
   my ($p1, $p2, $p3) = @_;
   my $dx1 = ($p2->[0] - $p1->[0]);
@@ -46,6 +67,27 @@ sub pointsColinear {
           ( ($dy2 == 0) && ($dx2 == 0) ) ||
           ( abs($dy1 * $dx2 - $dx1 * $dy2) / ($dx1 ** 2 + $dy1 ** 2 + $dx2 ** 2 + $dy2 ** 2) < 0.001 )
          );
+}
+
+# return the tangent of half the angle subtended by p1 to p2, then p3 to p4
+sub tanAngle {
+  my ($p1, $p2, $p3, $p4) = @_;
+  my $dx1 = ($p2->[0] - $p1->[0]);
+  my $dx2 = ($p4->[0] - $p3->[0]);
+  my $dy1 = ($p2->[1] - $p1->[1]);
+  my $dy2 = ($p4->[1] - $p3->[1]);
+  my $r1  = xyDistance($p1, $p2);
+  my $r2  = xyDistance($p3, $p4);
+  my $r1r2 = $r1 * $r2;
+  # cosine and sine of turning angle
+  my $c   = ($dx1 * $dx2 + $dy1 * $dy2) / $r1r2;
+  my $s   = ($dx1 * $dy2 - $dx2 * $dy1) / $r1r2;
+  # we want half of the complement of the turning angle
+  # cos(π - theta) = -cos(theta)
+  # sin(π - theta) = +sin(theta)
+  my $a   = atan2($s, -$c) / 2;
+  return undef if ($a == 0);
+  return sin($a) / cos($a);
 }
 
 sub xyAverage  {
@@ -99,10 +141,10 @@ sub splineInterpolation {
   my @points;
   my $nPoints = 20;
   for my $i ( 1 .. $nPoints - 1 ) {
-    my $f = $i / $nPoints;
+    my $fSpline = $i / $nPoints;
     my @p;
     for my $coord ( 0, 1 ) {
-      $p[$coord] = (1 - $f) ** 2 * $p1->[$coord] + 2 * $f * (1 - $f) * $p2->[$coord] + $f ** 2 * $p3->[$coord];
+      $p[$coord] = (1 - $fSpline) ** 2 * $p1->[$coord] + 2 * $fSpline * (1 - $fSpline) * $p2->[$coord] + $fSpline ** 2 * $p3->[$coord];
     }
     push @points, \@p;
   }
@@ -126,19 +168,25 @@ sub randomizeList {
   return @r;
 }
 
+
+
 # call this to generate a random altitude profile
 sub randomizeAltitude {
   my %var = @_;
   my $points = $var{points};
   my $gMax   = $var{gMax} // 0.12;
+  my $RG     = $var{RG} // 0;      # reduce gradient where road is tighter than this radius
   my $zMin   = $var{zMin} // 0;
   my $kPow   = $var{kPow} // 1.3;
   my $k0     = $var{k0} // 0;
   my $kMax   = $var{kMax} // 50;
   my $zCrop  = $var{zCrop} // 0;   # amount of altitude to crop to fill in valleys
-  my $p2p    = $var{p2p} // 0;     # if we have a point-to-point (non-periodic
-  my $gained = $var{gained};       # if we have a point-to-point (non-periodic
+  my $p2p    = $var{p2p} // 0;     # if we have a point-to-point (non-periodic)
+  my $gained = $var{gained};       # net gained altitude (only point-to-point)
   my $bow    = $var{bow};          # 2nd order altitude adjustment to center of route
+
+  warn("randomizing altitude...\n");
+  warn("zMin = $zMin\n");
 
   # add first point to end if not already
   if ((! $p2p) && (xyDistance($points->[-1], $points->[0]) > 0.01)) {
@@ -194,8 +242,13 @@ sub randomizeAltitude {
       my $ds = $ss[$i] - $ss[$i - 1];
       my $dz = $zs[$i] - $zs[$i - 1];
       my $g = $dz / (0.001 + $ds);
-      # clamp g and adjust altitude
+      # clamp g
       $g = ($g <=> 0) * (($gMax ** -4 + $g ** -4) ** -0.25);
+      # adjust g for curvature
+      if (($RG > 0) && ((! $p2p) || (($i >0) && ($i < $#$points)))) {
+	my $c = xyCurvature($points->[$i - 1], $points->[$i], $points->[($i + 1) % @$points]);
+	$g *= exp(-$RG * abs($c));
+      }
       $zNews[$i] = $zNews[$i - 1] + $g * $ds;
     } else {
       $zNews[$i] = $zs[0];
@@ -439,10 +492,6 @@ sub makePath {
   my $count = 0;
  pathLoop: while ($unconnected > 0) {
     $count ++;
-    if ($count % 10000 == 0) {
-      print stderr (($count % 100000 == 0 ) ? "|" : "-");
-      print stderr " $count\n" if (($count % 1000000) == 0);
-    }
 
     # find candidate points to add
     # format: index of first point in path, index of new point in coordinate list
@@ -512,6 +561,7 @@ sub makeRoute {
   my $hexagon = $vars{hexagon} // 0;
   my $N = $vars{N} // die;
   my $gMax = $vars{gMax} // die;
+  my $RG = $vars{RG} // 0;
   my $kPow = $vars{kPow} // die;
   my $k0 = $vars{k0} // 0;
   my $kMax = $vars{kMax} // 0;
@@ -522,6 +572,7 @@ sub makeRoute {
   my $p2p = $vars{p2p} // 0;
   my $gained = $vars{gained};
   my $bow = $vars{bow};
+  my $useArcs = $vars{useArcs} // 1;
 
 
   # first set of points, before interpolation
@@ -535,9 +586,11 @@ sub makeRoute {
   my @points2 = ();
 
   # set how far to curve the corners: can't be more than 1/2
+  # 1/3 @ L = 30
   my $f1 = 100 / $L;
   my $f2 = 0.5;
-  my $f = 1 / (1/$f1 + 1/$f2);
+  my $fCorner = 1 / (1/$f1 + 1/$f2);
+  warn("fCorner = $fCorner\n");
 
   # set up expanded list of points with interpolated turning points
   my $i0;
@@ -550,8 +603,8 @@ sub makeRoute {
   for my $i ( $i0 .. $#points1 ) {
     my $p1 = $points1[$i - 1];
     my $p2 = $points1[$i];
-    my $p3 = xyInterpolate($p1, $p2, $f);
-    my $p4 = xyInterpolate($p1, $p2, 1 - $f);
+    my $p3 = xyInterpolate($p1, $p2, $fCorner);
+    my $p4 = xyInterpolate($p1, $p2, 1 - $fCorner);
 
     push @points2, $p3, $p4, $p2;
   }
@@ -579,31 +632,37 @@ sub makeRoute {
   #   0: 1st point
   #   1: 1/3 to 2nd point
   #   2: 2/3 to 2nd point..
-  #   3: 2nd point
+  #   3: 2nd point (distance L from 1st point)
+  #   4: 1/3 to 3rd point
+  #   5: 2/3 to 3rd point
+  #   6: 3rd point (distance L from 2nd point)
   #   ...
   #   3N - 3: last point
   #
+  #  radius of turn:
+  #    60 deg turn: R = L / 3 sqrt(3)
+  #    120 deg turn: R = L / sqrt(3)
+  #
+  #  arc fit:initial direction from point 1 to 2
+  #    initial direction from point 1 to 2
+  #    final direction from point 4 to 5
+  #    fit circle from points 2 to 4
+  #    this only works because point spacing is constant
+  #
 
-
-  warn("points[0] = @{$points2[0]}\n");
-  warn("points[1] = @{$points2[1]}\n");
-  warn("points[2] = @{$points2[2]}\n");
-  warn("points[3] = @{$points2[3]}\n");
-  warn("points[4] = @{$points2[4]}\n");
-
-  # point 0: the first point: used for spline
-  # point 1: 1/4 of way to next point : this is on the route
-  # point 2: 3/4 of way to next point : this is on the route
-  # point 3: the next point : used for spline
   my @points = ();
 
   if ($p2p) {
     push @points, $points2[0];
   }
+  # process points in triplets
   for (my $i = 0; $i <= $#points2; $i += 3 ) {
-    my $p1 = $points2[$i - 1];
-    my $p2 = $points2[$i];
-    my $p3 = $points2[($i + 1) % @points2];
+    # arc connects points 1 and 3: point 2 used for interpolation only (discarded)
+    my $p0 = $points2[$i - 2];              # before preceding point (f along interval)
+    my $p1 = $points2[$i - 1];              # preceding point (1 - f along interval)
+    my $p2 = $points2[$i];                  # present point (apex)
+    my $p3 = $points2[($i + 1) % @points2]; # next point (f along interval
+    my $p4 = $points2[($i + 2) % @points2]; # beyond next point (1 - f along interval)
 
     if (
         ((($i == 0) || ($i == $#points2)) && $p2p) ||
@@ -611,8 +670,55 @@ sub makeRoute {
        ) {
       push @points, $p2;
     } else {
-      push @points, $p1 if ($f < 0.5);
-      push @points, splineInterpolation($p1, $p2, $p3);
+      if ($useArcs) {
+        # interval between first two points = (1 - 2f) LSide
+        my $r01 = xyDistance($p0, $p1);
+        # cosine of heading into turn
+        my $c01 = ($p1->[0] - $p0->[0]) / $r01;
+        # sin of heading into turn
+        my $s01 = ($p1->[1] - $p0->[1]) / $r01;
+        # interval between first next points = f LSide
+        my $r12 = xyDistance($p1, $p2);
+        # interval between last two points
+        my $r34 = xyDistance($p3, $p4);
+        # cosine of heading out of turn
+        my $c34 = ($p4->[0] - $p3->[0]) / $r34;
+        # sin of heading out of turn
+        my $s34 = ($p4->[1] - $p3->[1]) / $r34;
+
+        # headings
+        my $dir01 = atan2($s01, $c01);
+        my $dir34 = atan2($s34, $c34);
+        # change in angle, from -pi to +pi
+        my $ddir = $dir34 - $dir01;
+        $ddir -= $twopi * ($ddir <=> 0) if abs($ddir) > $pi;
+        # sign of turn
+        my $sign = $ddir <=> 0;
+        # find radius of turn
+        my $R = $r12 * abs(tanAngle($p0, $p1, $p3, $p4));
+        # pivot point
+        my $xc = $p1->[0] - $sign * $s01 * $R;
+        my $yc = $p1->[1] + $sign * $c01 * $R;
+        # number of points in turn
+        my $nPoints = int(1 + 10 * abs($ddir));
+	push @points, $p1;
+        for my $i ( 1 .. $nPoints - 1) {
+          my $fTurn = $i / $nPoints;  # fraction of distance in turn
+          my $dir = $dir01 + $ddir * $fTurn;
+          my $cDir = cos($dir);
+          my $sDir = sin($dir);
+          # points relative to povit point
+          my $x = $xc + $sign * $sDir * $R;
+          my $y = $yc - $sign * $cDir * $R;
+          push @points, [$x, $y];
+        }
+	push @points, $p3;
+      } else {
+        # old code: splines
+	push @points, $p1;
+        push @points, splineInterpolation($p1, $p2, $p3);
+	push @points, $p3;
+      }
     }
   }
 
@@ -645,18 +751,19 @@ sub makeRoute {
     randomizeAltitude(
                       points=> \@points,
                       gMax=> $gMax,
+                      RG=> $RG,
                       zMin => $zMin,
                       kPow=> $kPow,
                       k0=> $k0,
-                      $kMax=> $kMax,
+                      kMax=> $kMax,
                       zCrop=> $zCrop,
                       p2p=> $p2p,
                       gained=> $gained,
 		      bow => $bow,
+		      zMin=> $zMin,
                      );
   } else {
     # altitude, grade peaks at north:
-    # max grade 0.1:
     # my $yMax = $L * $N;
     # my $dzdyMax = 0.1 * 2 / sqrt(3);
     # my $a = ( $dzdyMax / $yMax ** 2 ) / 3;
@@ -685,6 +792,16 @@ sub makeRoute {
       }
       $p->[2] = $z;
     }
+    # set zMin
+    my $p0 = $points[0]->[2];
+    for my $p ( @points ) {
+      $p0 = $p->[2]
+	if ($p->[2] < $p0);
+    }
+    my $dz = $zMin - $p0;
+    for my $p ( @points ) {
+      $p->[2] += $dz;
+    }
   }
 
   # copy last point
@@ -712,19 +829,25 @@ my $out;
 my $hexagon = 0;  # whether to make it a hexagon rather than a triangle
 my $hollow = 0;   # whether the center is hollow
 my $gMax = 0.12;
+my $RG;           # characteristic radius for grade reduction
 my $randomizeAltitude = 0;
 my $kPow = 1.3;
 my $k0 = 0;
 my $kMax = 50;
 my $maxSpacing = 0;
-my $zMin = 50;
+my $zMin = 1290;   # Bonneville Salt Flats
 my $zCrop = 0;
 my $p2p;
 my $gained;
 my $bow;
 my $loop;
+my $seed;
+my $useArcs;
+my $useSplines;
 
 GetOptions (
+	    "lon0=f"   => \$lon0,
+	    "lat0=f"   => \$lat0,
             "L=f"      => \$L,
             "N=i"      => \$N,
             "noSave"   => \$noSave,
@@ -733,6 +856,8 @@ GetOptions (
             "hollow"   => \$hollow,
             "maxGradient=f" => \$gMax,
             "gMax=f"     => \$gMax,
+	    "RG=f"     => \$RG,
+	    "RGrade=f" => \$RG,
             "randomizeAltitude" => \$randomizeAltitude,
             "kPower=f" => \$kPow,
             "k0=f"     => \$k0,
@@ -745,10 +870,19 @@ GetOptions (
             "gained=f"     => \$gained,
 	    "bow=f"        => \$bow,
             "loop"         => \$loop,
-           );
+	    "useArcs"      => \$useArcs,
+	    "useSplines"   => \$useSplines,
+	    "seed=i"       => \$seed,
+           )
+  or die("illegal options specified!\n");
 
+
+$useArcs //= (! $useSplines);
 
 die "minimum N = 3 points\n" if ($N < 3);
+
+srand($seed) if (defined $seed);
+
 
 # if gained specified, then it's point-to-point
 $p2p = 1 if ((defined $gained) && ($gained != 0));
@@ -844,6 +978,7 @@ my $points = makeRoute(
                        N=> $N,
                        coords=> $coords,
                        gMax=> $gMax,
+                       RG=> $RG,
                        hexagon=> $hexagon,
                        kPow => $kPow,
                        k0 => $k0,
@@ -856,6 +991,8 @@ my $points = makeRoute(
                        p2p => $p2p,
                        gained => $gained,
 		       bow => $bow,
+		       useArcs => $useArcs,
+		       useSplines => $useSplines,
                       );
 
 
@@ -867,7 +1004,7 @@ exit if ($noSave);
 #
 
 # calculate lats and lons
-my $rEarth      = 2e7 / $pi;    # earth radius in meters
+my $rEarth      = 20037392 / $pi;    # earth radius in meters
 my $deg2rad     = $pi / 180;
 my $lat2y       = $rEarth * $deg2rad;
 
@@ -884,7 +1021,7 @@ for my $i ( 0 .. $#$points ) {
 my $gpx  = Geo::Gpx->new();
 
 
-my $name = ($hexagon) ? "hexagonRoute" : "triangleRoute";
+my $name = ($hexagon) ? "hexagonRoute" : "randomRoute";
 
 $gpx->tracks_add(
 		{
@@ -897,7 +1034,7 @@ $gpx->tracks_add(
 		}
 	       );
 
-my $fName = (defined $out) ? $out : "triangleRoute.gpx";
+my $fName = (defined $out) ? $out : "randomRoute.gpx";
 warn("writing GPX to file $fName\n");
 open my $fout, ">$fName";
 print $fout $gpx->xml(ver=> "1.1");
