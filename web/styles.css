@@ -1,0 +1,326 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Upload screen */
+.upload-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.upload-content {
+    text-align: center;
+    color: white;
+    max-width: 500px;
+    padding: 40px;
+}
+
+.upload-content h1 {
+    font-size: 3rem;
+    font-weight: 300;
+    margin-bottom: 60px;
+    color: #ff6b6b;
+}
+
+.file-upload-area {
+    margin-top: 60px;
+    margin-bottom: 40px;
+}
+
+.file-upload-button {
+    display: block;
+    padding: 40px 60px;
+    border: 2px dashed rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    color: white;
+    font-size: 1rem;
+}
+
+.file-upload-button:hover,
+.file-upload-area.drag-over .file-upload-button {
+    border-color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.file-upload-button .file-types {
+    display: block;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    opacity: 0.7;
+}
+
+/* Results screen */
+.results-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 900;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.main-container {
+    display: flex;
+    height: 100vh;
+}
+
+.left-panel {
+    flex: 1;
+    padding: 20px 10px 20px 20px;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* Right sidebar */
+.right-sidebar {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 20px 20px 10px;
+}
+
+.sidebar-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.track-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    text-align: center;
+    word-wrap: break-word;
+    line-height: 1.3;
+}
+
+.legend {
+    background: rgba(236, 240, 241, 0.8);
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-line {
+    display: inline-block;
+    width: 24px;
+    height: 3px;
+    margin-right: 8px;
+    border-radius: 2px;
+}
+
+.legend-line.original {
+    background: #3498db;
+}
+
+.legend-line.processed {
+    background: #e74c3c;
+}
+
+.process-button {
+    padding: 12px 24px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.process-button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.process-button.disabled {
+    background: #bdc3c7;
+    color: #7f8c8d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.process-button.disabled:hover {
+    background: #bdc3c7;
+    transform: none;
+}
+
+.reset-button {
+    background: #95a5a6;
+    margin-top: auto;
+}
+
+.reset-button:hover {
+    background: #7f8c8d;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-content p {
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: #ff6b6b;
+}
+
+/* Error overlay */
+.error-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.error-content {
+    text-align: center;
+    padding: 40px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    margin: 20px;
+}
+
+.error-content h3 {
+    color: #e74c3c;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.error-content p {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+#errorBackBtn {
+    padding: 12px 24px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+#errorBackBtn:hover {
+    background: #2980b9;
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        flex-direction: column;
+    }
+
+    .left-panel {
+        padding: 10px;
+        height: 60vh;
+    }
+
+    .right-sidebar {
+        width: 100%;
+        padding: 0 10px 10px 10px;
+    }
+
+    .sidebar-content {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+    }
+
+    .track-name {
+        margin-bottom: 0;
+        font-size: 1rem;
+    }
+
+    .process-button {
+        width: auto;
+        margin-bottom: 0;
+    }
+
+    .reset-button {
+        margin-top: 0;
+    }
+}

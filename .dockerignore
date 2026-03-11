@@ -1,0 +1,11 @@
+.git
+*.pdf
+*.png
+*.text
+*.html
+!web/*.html
+makeRandomRoute
+README.md
+processGPX.html
+processGPX.pdf
+processGPX.text

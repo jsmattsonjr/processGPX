@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>processGPX</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+    <!-- Upload screen -->
+    <div id="uploadScreen" class="upload-screen">
+        <div class="upload-content">
+            <h1>processGPX</h1>
+            <div id="dropZone" class="file-upload-area">
+                <input type="file" id="gpxFile" accept=".gpx" style="display: none;" />
+                <label for="gpxFile" class="file-upload-button">
+                    Drag &amp; drop a GPX file here, or click to browse
+                    <span class="file-types">Only .gpx accepted (max 5 MB)</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results screen -->
+    <div id="resultsScreen" class="results-screen hidden">
+        <div class="main-container">
+            <div class="left-panel">
+                <div id="map"></div>
+            </div>
+            <div class="right-sidebar">
+                <div class="sidebar-content">
+                    <h2 id="trackName" class="track-name"></h2>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <span class="legend-line original"></span> Original
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line processed"></span> Processed
+                        </div>
+                    </div>
+                    <button id="processGpxBtn" class="process-button">processGPX</button>
+                    <button id="downloadBtn" class="process-button disabled" disabled>Download processed GPX</button>
+                    <button id="resetBtn" class="process-button reset-button">Load another file</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p id="loadingMessage">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Error overlay -->
+    <div id="error" class="error-overlay hidden">
+        <div class="error-content">
+            <h3>Error</h3>
+            <p id="errorMessage"></p>
+            <button id="errorBackBtn">Back</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@mapbox/togeojson@0.16.0/togeojson.js"></script>
+    <script>
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MiB
+
+        let map = null;
+        let originalLayer = null;
+        let processedLayer = null;
+        let currentFileName = '';
+        let processedGpxBlob = null;
+
+        // --- UI helpers ---
+        function show(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function showError(msg) {
+            document.getElementById('errorMessage').textContent = msg;
+            show('error');
+            hide('loading');
+        }
+
+        function showLoading(msg) {
+            document.getElementById('loadingMessage').textContent = msg || 'Processing...';
+            show('loading');
+        }
+
+        // --- Map ---
+        function initMap() {
+            if (map) { map.remove(); map = null; }
+            map = L.map('map');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function displayGpxOnMap(gpxText, color, isProcessed) {
+            const parser = new DOMParser();
+            const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
+            const geojson = toGeoJSON.gpx(gpxDoc);
+
+            const layer = L.geoJSON(geojson, {
+                style: { color: color, weight: isProcessed ? 4 : 3, opacity: isProcessed ? 0.9 : 0.6 }
+            }).addTo(map);
+
+            return layer;
+        }
+
+        // --- File handling ---
+        function handleFile(file) {
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.gpx')) {
+                showError('Please select a .gpx file.');
+                return;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File exceeds the 5 MB limit.');
+                return;
+            }
+
+            currentFileName = file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const gpxText = e.target.result;
+                showResults(gpxText);
+            };
+            reader.onerror = function() { showError('Failed to read file.'); };
+            reader.readAsText(file);
+        }
+
+        function showResults(gpxText) {
+            hide('uploadScreen');
+            show('resultsScreen');
+
+            // Extract track name from GPX
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(gpxText, 'text/xml');
+            const nameEl = doc.querySelector('trk > name') || doc.querySelector('metadata > name');
+            document.getElementById('trackName').textContent =
+                (nameEl ? nameEl.textContent : currentFileName.replace(/\.gpx$/i, ''));
+
+            initMap();
+            originalLayer = displayGpxOnMap(gpxText, '#3498db', false);
+            map.fitBounds(originalLayer.getBounds(), { padding: [30, 30] });
+
+            // Reset processed state
+            processedGpxBlob = null;
+            if (processedLayer) { map.removeLayer(processedLayer); processedLayer = null; }
+            const dlBtn = document.getElementById('downloadBtn');
+            dlBtn.disabled = true;
+            dlBtn.classList.add('disabled');
+        }
+
+        // --- Process GPX via server ---
+        async function processGPX() {
+            const fileInput = document.getElementById('gpxFile');
+            const file = fileInput.files[0];
+            if (!file) { showError('No file loaded.'); return; }
+
+            showLoading('Sending GPX to server for processing...');
+
+            const formData = new FormData();
+            formData.append('gpx', file);
+
+            try {
+                const resp = await fetch('/process', { method: 'POST', body: formData });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(text || `Server error: ${resp.status}`);
+                }
+
+                const processedGpxText = await resp.text();
+                processedGpxBlob = new Blob([processedGpxText], { type: 'application/gpx+xml' });
+
+                // Display processed route
+                if (processedLayer) { map.removeLayer(processedLayer); }
+                processedLayer = displayGpxOnMap(processedGpxText, '#e74c3c', true);
+
+                // Enable download
+                const dlBtn = document.getElementById('downloadBtn');
+                dlBtn.disabled = false;
+                dlBtn.classList.remove('disabled');
+
+                hide('loading');
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function downloadProcessed() {
+            if (!processedGpxBlob) return;
+            const baseName = currentFileName.replace(/\.gpx$/i, '');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(processedGpxBlob);
+            a.download = `${baseName}_processed.gpx`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function resetApp() {
+            hide('resultsScreen');
+            show('uploadScreen');
+            document.getElementById('gpxFile').value = '';
+            currentFileName = '';
+            processedGpxBlob = null;
+            if (map) { map.remove(); map = null; }
+            originalLayer = null;
+            processedLayer = null;
+        }
+
+        // --- Event listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('gpxFile');
+            const dropZone = document.getElementById('dropZone');
+
+            fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+            // Drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                // Set the file input so processGPX() can read it
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                handleFile(file);
+            });
+
+            document.getElementById('processGpxBtn').addEventListener('click', processGPX);
+            document.getElementById('downloadBtn').addEventListener('click', downloadProcessed);
+            document.getElementById('resetBtn').addEventListener('click', resetApp);
+            document.getElementById('errorBackBtn').addEventListener('click', () => {
+                hide('error');
+            });
+        });
+    </script>
+</body>
+
+</html>
