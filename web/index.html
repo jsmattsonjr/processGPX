@@ -299,6 +299,9 @@
             document.getElementById('trackName').textContent =
                 (nameEl ? nameEl.textContent : currentFileName.replace(/\.gpx$/i, ''));
 
+            // Defer map init to allow browser to reflow the layout first
+            // (Leaflet needs the container to have dimensions)
+            requestAnimationFrame(() => {
             initMap();
             startMarkers = [];
             endMarkers = [];
@@ -326,6 +329,7 @@
             const dlBtn = document.getElementById('downloadBtn');
             dlBtn.disabled = true;
             dlBtn.classList.add('disabled');
+            }); // end requestAnimationFrame
         }
 
         // --- Process GPX via server ---
