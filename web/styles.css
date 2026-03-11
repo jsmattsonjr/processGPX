@@ -100,7 +100,7 @@ body {
 
 /* Right sidebar */
 .right-sidebar {
-    width: 240px;
+    width: 300px;
     display: flex;
     flex-direction: column;
     padding: 20px 20px 20px 10px;
@@ -210,6 +210,7 @@ body {
 .stats-table td {
     padding: 3px 6px;
     text-align: right;
+    white-space: nowrap;
 }
 
 .stats-table td:first-child {

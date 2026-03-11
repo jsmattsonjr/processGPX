@@ -68,7 +68,7 @@
                                     <td id="procDist">-</td>
                                 </tr>
                                 <tr>
-                                    <td>Elev. gain</td>
+                                    <td>Elev</td>
                                     <td id="origElev">-</td>
                                     <td id="procElev">-</td>
                                 </tr>
@@ -207,28 +207,33 @@
                 style: { color: color, weight: isProcessed ? 4 : 3, opacity: isProcessed ? 0.9 : 0.6 }
             }).addTo(map);
 
-            // Add start/end markers
-            const coords = getTrackCoords(gpxText);
-            if (coords.length >= 2) {
-                const startLL = [coords[0][1], coords[0][0]];
-                const endLL = [coords[coords.length - 1][1], coords[coords.length - 1][0]];
-                const tag = isProcessed ? 'Processed' : 'Original';
-
-                // Check if loop (start and end within 10m)
-                const dist = map.distance(startLL, endLL);
-                if (dist <= 10) {
-                    const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start/finish').addTo(map);
-                    startMarkers.push(startM);
-                    endMarkers.push(null);
-                } else {
-                    const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start').addTo(map);
-                    const endM = createEndpointMarker(endLL, '#e74c3c', tag + ' end').addTo(map);
-                    startMarkers.push(startM);
-                    endMarkers.push(endM);
-                }
-            }
-
             return layer;
+        }
+
+        // Add start/end markers for a track (call after map has a view)
+        function addEndpointMarkers(gpxText, isProcessed) {
+            const coords = getTrackCoords(gpxText);
+            if (coords.length < 2) {
+                startMarkers.push(null);
+                endMarkers.push(null);
+                return;
+            }
+            const startLL = [coords[0][1], coords[0][0]];
+            const endLL = [coords[coords.length - 1][1], coords[coords.length - 1][0]];
+            const tag = isProcessed ? 'Processed' : 'Original';
+
+            // Check if loop (start and end within 10m)
+            const dist = map.distance(startLL, endLL);
+            if (dist <= 10) {
+                const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start/finish').addTo(map);
+                startMarkers.push(startM);
+                endMarkers.push(null);
+            } else {
+                const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start').addTo(map);
+                const endM = createEndpointMarker(endLL, '#e74c3c', tag + ' end').addTo(map);
+                startMarkers.push(startM);
+                endMarkers.push(endM);
+            }
         }
 
         // --- Toggle track visibility ---
@@ -299,9 +304,6 @@
             document.getElementById('trackName').textContent =
                 (nameEl ? nameEl.textContent : currentFileName.replace(/\.gpx$/i, ''));
 
-            // Defer map init to allow browser to reflow the layout first
-            // (Leaflet needs the container to have dimensions)
-            requestAnimationFrame(() => {
             initMap();
             startMarkers = [];
             endMarkers = [];
@@ -309,6 +311,7 @@
             originalVisible = true;
             document.getElementById('eyeOriginal').style.opacity = 1;
             map.fitBounds(originalLayer.getBounds(), { padding: [30, 30] });
+            addEndpointMarkers(gpxText, false);
 
             // Compute and show original stats
             const origCoords = getTrackCoords(gpxText);
@@ -329,7 +332,6 @@
             const dlBtn = document.getElementById('downloadBtn');
             dlBtn.disabled = true;
             dlBtn.classList.add('disabled');
-            }); // end requestAnimationFrame
         }
 
         // --- Process GPX via server ---
@@ -358,6 +360,7 @@
                 // Display processed route
                 if (processedLayer) { map.removeLayer(processedLayer); }
                 processedLayer = displayGpxOnMap(processedGpxText, '#e74c3c', true);
+                addEndpointMarkers(processedGpxText, true);
                 processedVisible = true;
                 document.getElementById('eyeProcessed').style.opacity = 1;
 
