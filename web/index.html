@@ -101,6 +101,8 @@
         </div>
     </div>
 
+    <div class="version-footer" id="versionFooter"></div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@mapbox/togeojson@0.16.0/togeojson.js"></script>
     <script>
@@ -443,6 +445,11 @@
             document.getElementById('errorBackBtn').addEventListener('click', () => {
                 hide('error');
             });
+
+            // Fetch version
+            fetch('/version').then(r => r.text()).then(v => {
+                document.getElementById('versionFooter').textContent = 'processGPX v' + v;
+            }).catch(() => {});
         });
     </script>
 </body>

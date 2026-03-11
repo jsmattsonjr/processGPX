@@ -82,6 +82,15 @@ post '/process' => sub ($c) {
     $c->render(json => { gpx => $result, log => $output });
 };
 
+# Version endpoint (cached at startup)
+my $version = `perl $process_gpx --version 2>&1`;
+chomp $version;
+$version =~ s/.*version\s*//i;
+
+get '/version' => sub ($c) {
+    $c->render(text => $version);
+};
+
 # Listen on PORT env var (Cloud Run sets this) or default 8080
 my $port = $ENV{PORT} || 8080;
 app->start('daemon', '-l', "http://*:$port");

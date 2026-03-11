@@ -262,6 +262,19 @@ body {
     background: #7f8c8d;
 }
 
+/* Version footer */
+.version-footer {
+    position: fixed;
+    bottom: 2px;
+    right: 10px;
+    width: 300px;
+    text-align: center;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    z-index: 1001;
+    pointer-events: none;
+}
+
 /* Loading overlay */
 .loading-overlay {
     position: fixed;
