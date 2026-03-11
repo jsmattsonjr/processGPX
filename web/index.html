@@ -17,7 +17,7 @@
             <div id="dropZone" class="file-upload-area">
                 <input type="file" id="gpxFile" accept=".gpx" style="display: none;" />
                 <label for="gpxFile" class="file-upload-button">
-                    Drag &amp; drop a GPX file here, or click to browse
+                    <span id="dropLabel">Drag &amp; drop a GPX file here, or click to browse</span>
                     <span class="file-types">Only .gpx accepted (max 5 MB)</span>
                 </label>
             </div>
@@ -33,14 +33,49 @@
             <div class="right-sidebar">
                 <div class="sidebar-content">
                     <h2 id="trackName" class="track-name"></h2>
+
                     <div class="legend">
-                        <div class="legend-item">
-                            <span class="legend-line original"></span> Original
+                        <div class="legend-item toggleable" id="toggleOriginal" title="Click to toggle visibility">
+                            <span class="legend-line original"></span>
+                            <span>Original</span>
+                            <span class="legend-eye" id="eyeOriginal">&#x25C9;</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="legend-line processed"></span> Processed
+                        <div class="legend-item toggleable" id="toggleProcessed" title="Click to toggle visibility">
+                            <span class="legend-line processed"></span>
+                            <span>Processed</span>
+                            <span class="legend-eye" id="eyeProcessed">&#x25C9;</span>
                         </div>
                     </div>
+
+                    <div id="statsPanel" class="stats-panel hidden">
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Original</th>
+                                    <th>Processed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Points</td>
+                                    <td id="origPoints">-</td>
+                                    <td id="procPoints">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Distance</td>
+                                    <td id="origDist">-</td>
+                                    <td id="procDist">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Elev. gain</td>
+                                    <td id="origElev">-</td>
+                                    <td id="procElev">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
                     <button id="processGpxBtn" class="process-button">processGPX</button>
                     <button id="downloadBtn" class="process-button disabled" disabled>Download processed GPX</button>
                     <button id="resetBtn" class="process-button reset-button">Load another file</button>
@@ -74,8 +109,12 @@
         let map = null;
         let originalLayer = null;
         let processedLayer = null;
+        let startMarkers = [];
+        let endMarkers = [];
         let currentFileName = '';
         let processedGpxBlob = null;
+        let originalVisible = true;
+        let processedVisible = true;
 
         // --- UI helpers ---
         function show(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -102,6 +141,63 @@
             }).addTo(map);
         }
 
+        function createEndpointMarker(latlng, color, label) {
+            return L.circleMarker(latlng, {
+                radius: 7,
+                fillColor: color,
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).bindTooltip(label, { permanent: false, direction: 'top' });
+        }
+
+        function getTrackCoords(gpxText) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(gpxText, 'text/xml');
+            const geojson = toGeoJSON.gpx(doc);
+            // Find first LineString or MultiLineString
+            for (const f of geojson.features) {
+                if (f.geometry.type === 'LineString') {
+                    return f.geometry.coordinates;
+                }
+                if (f.geometry.type === 'MultiLineString') {
+                    return f.geometry.coordinates.flat();
+                }
+            }
+            return [];
+        }
+
+        function computeStats(coords) {
+            let distance = 0;
+            let elevGain = 0;
+            for (let i = 1; i < coords.length; i++) {
+                const [lon1, lat1, ele1] = coords[i - 1];
+                const [lon2, lat2, ele2] = coords[i];
+                // Haversine
+                const R = 6371000;
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) ** 2 +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) ** 2;
+                distance += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                if (ele2 !== undefined && ele1 !== undefined) {
+                    const dEle = ele2 - ele1;
+                    if (dEle > 0) elevGain += dEle;
+                }
+            }
+            return { points: coords.length, distance, elevGain };
+        }
+
+        function formatDist(meters) {
+            return (meters / 1000).toFixed(2) + ' km';
+        }
+
+        function formatElev(meters) {
+            return Math.round(meters) + ' m';
+        }
+
         function displayGpxOnMap(gpxText, color, isProcessed) {
             const parser = new DOMParser();
             const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
@@ -111,7 +207,59 @@
                 style: { color: color, weight: isProcessed ? 4 : 3, opacity: isProcessed ? 0.9 : 0.6 }
             }).addTo(map);
 
+            // Add start/end markers
+            const coords = getTrackCoords(gpxText);
+            if (coords.length >= 2) {
+                const startLL = [coords[0][1], coords[0][0]];
+                const endLL = [coords[coords.length - 1][1], coords[coords.length - 1][0]];
+                const tag = isProcessed ? 'Processed' : 'Original';
+
+                // Check if loop (start and end within 10m)
+                const dist = map.distance(startLL, endLL);
+                if (dist <= 10) {
+                    const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start/finish').addTo(map);
+                    startMarkers.push(startM);
+                    endMarkers.push(null);
+                } else {
+                    const startM = createEndpointMarker(startLL, '#2ecc71', tag + ' start').addTo(map);
+                    const endM = createEndpointMarker(endLL, '#e74c3c', tag + ' end').addTo(map);
+                    startMarkers.push(startM);
+                    endMarkers.push(endM);
+                }
+            }
+
             return layer;
+        }
+
+        // --- Toggle track visibility ---
+        function toggleOriginal() {
+            if (!originalLayer) return;
+            originalVisible = !originalVisible;
+            if (originalVisible) {
+                map.addLayer(originalLayer);
+                startMarkers[0] && map.addLayer(startMarkers[0]);
+                endMarkers[0] && map.addLayer(endMarkers[0]);
+            } else {
+                map.removeLayer(originalLayer);
+                startMarkers[0] && map.removeLayer(startMarkers[0]);
+                endMarkers[0] && map.removeLayer(endMarkers[0]);
+            }
+            document.getElementById('eyeOriginal').style.opacity = originalVisible ? 1 : 0.3;
+        }
+
+        function toggleProcessed() {
+            if (!processedLayer) return;
+            processedVisible = !processedVisible;
+            if (processedVisible) {
+                map.addLayer(processedLayer);
+                startMarkers[1] && map.addLayer(startMarkers[1]);
+                endMarkers[1] && map.addLayer(endMarkers[1]);
+            } else {
+                map.removeLayer(processedLayer);
+                startMarkers[1] && map.removeLayer(startMarkers[1]);
+                endMarkers[1] && map.removeLayer(endMarkers[1]);
+            }
+            document.getElementById('eyeProcessed').style.opacity = processedVisible ? 1 : 0.3;
         }
 
         // --- File handling ---
@@ -127,6 +275,10 @@
             }
 
             currentFileName = file.name;
+
+            // Update drop zone label to show selected filename
+            document.getElementById('dropLabel').textContent = file.name;
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 const gpxText = e.target.result;
@@ -148,12 +300,29 @@
                 (nameEl ? nameEl.textContent : currentFileName.replace(/\.gpx$/i, ''));
 
             initMap();
+            startMarkers = [];
+            endMarkers = [];
             originalLayer = displayGpxOnMap(gpxText, '#3498db', false);
+            originalVisible = true;
+            document.getElementById('eyeOriginal').style.opacity = 1;
             map.fitBounds(originalLayer.getBounds(), { padding: [30, 30] });
+
+            // Compute and show original stats
+            const origCoords = getTrackCoords(gpxText);
+            const origStats = computeStats(origCoords);
+            document.getElementById('origPoints').textContent = origStats.points;
+            document.getElementById('origDist').textContent = formatDist(origStats.distance);
+            document.getElementById('origElev').textContent = formatElev(origStats.elevGain);
+            document.getElementById('procPoints').textContent = '-';
+            document.getElementById('procDist').textContent = '-';
+            document.getElementById('procElev').textContent = '-';
+            show('statsPanel');
 
             // Reset processed state
             processedGpxBlob = null;
-            if (processedLayer) { map.removeLayer(processedLayer); processedLayer = null; }
+            processedLayer = null;
+            processedVisible = true;
+            document.getElementById('eyeProcessed').style.opacity = 0.3;
             const dlBtn = document.getElementById('downloadBtn');
             dlBtn.disabled = true;
             dlBtn.classList.add('disabled');
@@ -165,7 +334,8 @@
             const file = fileInput.files[0];
             if (!file) { showError('No file loaded.'); return; }
 
-            showLoading('Sending GPX to server for processing...');
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            showLoading(`Processing ${file.name} (${sizeMB} MB)...`);
 
             const formData = new FormData();
             formData.append('gpx', file);
@@ -177,12 +347,22 @@
                     throw new Error(text || `Server error: ${resp.status}`);
                 }
 
-                const processedGpxText = await resp.text();
+                const result = await resp.json();
+                const processedGpxText = result.gpx;
                 processedGpxBlob = new Blob([processedGpxText], { type: 'application/gpx+xml' });
 
                 // Display processed route
                 if (processedLayer) { map.removeLayer(processedLayer); }
                 processedLayer = displayGpxOnMap(processedGpxText, '#e74c3c', true);
+                processedVisible = true;
+                document.getElementById('eyeProcessed').style.opacity = 1;
+
+                // Compute and show processed stats
+                const procCoords = getTrackCoords(processedGpxText);
+                const procStats = computeStats(procCoords);
+                document.getElementById('procPoints').textContent = procStats.points;
+                document.getElementById('procDist').textContent = formatDist(procStats.distance);
+                document.getElementById('procElev').textContent = formatElev(procStats.elevGain);
 
                 // Enable download
                 const dlBtn = document.getElementById('downloadBtn');
@@ -207,13 +387,20 @@
 
         function resetApp() {
             hide('resultsScreen');
+            hide('statsPanel');
             show('uploadScreen');
             document.getElementById('gpxFile').value = '';
+            document.getElementById('dropLabel').textContent =
+                'Drag & drop a GPX file here, or click to browse';
             currentFileName = '';
             processedGpxBlob = null;
             if (map) { map.remove(); map = null; }
             originalLayer = null;
             processedLayer = null;
+            startMarkers = [];
+            endMarkers = [];
+            originalVisible = true;
+            processedVisible = true;
         }
 
         // --- Event listeners ---
@@ -235,7 +422,6 @@
                 e.preventDefault();
                 dropZone.classList.remove('drag-over');
                 const file = e.dataTransfer.files[0];
-                // Set the file input so processGPX() can read it
                 const dt = new DataTransfer();
                 dt.items.add(file);
                 fileInput.files = dt.files;
@@ -245,6 +431,8 @@
             document.getElementById('processGpxBtn').addEventListener('click', processGPX);
             document.getElementById('downloadBtn').addEventListener('click', downloadProcessed);
             document.getElementById('resetBtn').addEventListener('click', resetApp);
+            document.getElementById('toggleOriginal').addEventListener('click', toggleOriginal);
+            document.getElementById('toggleProcessed').addEventListener('click', toggleProcessed);
             document.getElementById('errorBackBtn').addEventListener('click', () => {
                 hide('error');
             });

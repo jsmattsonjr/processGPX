@@ -79,8 +79,7 @@ post '/process' => sub ($c) {
     # Clean up temp files
     unlink $in_file, $out_file;
 
-    $c->res->headers->content_type('application/gpx+xml');
-    $c->render(data => $result);
+    $c->render(json => { gpx => $result, log => $output });
 };
 
 # Listen on PORT env var (Cloud Run sets this) or default 8080
