@@ -29,6 +29,13 @@
         <div class="main-container">
             <div class="left-panel">
                 <div id="map"></div>
+                <div id="optionsPanel" class="options-panel hidden">
+                    <div class="options-header">
+                        <h2>Options</h2>
+                        <span class="options-count" id="optionsCount">0 selected</span>
+                    </div>
+                    <div class="options-grid" id="optionsGrid"></div>
+                </div>
             </div>
             <div class="right-sidebar">
                 <div class="sidebar-content">
@@ -76,6 +83,7 @@
                         </table>
                     </div>
 
+                    <button id="optionsBtn" class="process-button options-button">Options</button>
                     <button id="processGpxBtn" class="process-button">processGPX</button>
                     <button id="downloadBtn" class="process-button disabled" disabled>Download processed GPX</button>
                     <button id="resetBtn" class="process-button reset-button">Load another file</button>
@@ -117,6 +125,160 @@
         let processedGpxBlob = null;
         let originalVisible = true;
         let processedVisible = true;
+        let optionsVisible = false;
+
+        // Option definitions: { name, type: 'boolean' | 'value', hint }
+        const OPTIONS = [
+            { name: 'addCornerWaypoints', type: 'boolean' },
+            { name: 'addCurvature', type: 'boolean' },
+            { name: 'addDirection', type: 'boolean' },
+            { name: 'addGradient', type: 'boolean' },
+            { name: 'addGradientSigns', type: 'boolean' },
+            { name: 'addGradientWaypoints', type: 'boolean' },
+            { name: 'addHeading', type: 'boolean' },
+            { name: 'addSigma', type: 'boolean' },
+            { name: 'anchorSF', type: 'boolean' },
+            { name: 'append', type: 'value', hint: 'meters' },
+            { name: 'arcInterpolation', type: 'boolean' },
+            { name: 'arcInterpolationDegs', type: 'value', hint: 'degrees' },
+            { name: 'arcInterpolationEnd', type: 'value', hint: 'meters' },
+            { name: 'arcInterpolationMaxDegs', type: 'value', hint: 'degrees' },
+            { name: 'arcInterpolationMaxRatio', type: 'value', hint: 'ratio' },
+            { name: 'arcInterpolationStart', type: 'value', hint: 'meters' },
+            { name: 'auto', type: 'boolean' },
+            { name: 'autoLoop', type: 'boolean' },
+            { name: 'autoSegmentFinishMargin', type: 'value', hint: 'meters' },
+            { name: 'autoSegmentMargin', type: 'value', hint: 'meters' },
+            { name: 'autoSegmentNames', type: 'value', hint: 'name,name,...' },
+            { name: 'autoSegmentPower', type: 'value', hint: 'number' },
+            { name: 'autoSegmentStartMargin', type: 'value', hint: 'meters' },
+            { name: 'autoSegmentStretch', type: 'value', hint: 'amount' },
+            { name: 'autoSegments', type: 'value', hint: 'threshold [power]' },
+            { name: 'autoSmoothG', type: 'value', hint: 'scale' },
+            { name: 'autoSmoothZ', type: 'value', hint: 'scale' },
+            { name: 'autoSpacing', type: 'boolean' },
+            { name: 'autoSplits', type: 'value', hint: 'count' },
+            { name: 'autoStraighten', type: 'value', hint: 'deviation length' },
+            { name: 'autoStraightenDeviation', type: 'value', hint: 'meters' },
+            { name: 'autoStraightenLength', type: 'value', hint: 'meters' },
+            { name: 'author', type: 'value', hint: 'string' },
+            { name: 'circle', type: 'value', hint: 'start end ...' },
+            { name: 'circleEnd', type: 'value', hint: 'meters ...' },
+            { name: 'circleStart', type: 'value', hint: 'meters ...' },
+            { name: 'circuitFromPosition', type: 'value', hint: 'meters circuits [repeats]' },
+            { name: 'circuitToPosition', type: 'value', hint: 'meters circuits [repeats]' },
+            { name: 'closeLoop', type: 'boolean' },
+            { name: 'copyPoint', type: 'boolean' },
+            { name: 'copyright', type: 'value', hint: 'string' },
+            { name: 'cornerCrop', type: 'value', hint: 'meters' },
+            { name: 'cornerCropArcFit', type: 'boolean' },
+            { name: 'cornerCropEnd', type: 'value', hint: 'meters' },
+            { name: 'cornerCropStart', type: 'value', hint: 'meters' },
+            { name: 'cornerEffect', type: 'value', hint: 'number' },
+            { name: 'cropMax', type: 'value', hint: 'meters' },
+            { name: 'cropMin', type: 'value', hint: 'meters' },
+            { name: 'crossingAngle', type: 'value', hint: 'degrees' },
+            { name: 'crossingHeight', type: 'value', hint: 'meters' },
+            { name: 'crossingTransition', type: 'value', hint: 'meters' },
+            { name: 'curvatureSmoothing', type: 'value', hint: 'meters' },
+            { name: 'curvatureThreshold', type: 'value', hint: '1/meters' },
+            { name: 'deleteRange', type: 'value', hint: 'start end ...' },
+            { name: 'description', type: 'value', hint: 'string' },
+            { name: 'extend', type: 'value', hint: 'meters' },
+            { name: 'extendBack', type: 'value', hint: 'meters' },
+            { name: 'finishCircuitDistance', type: 'value', hint: 'meters' },
+            { name: 'finishCircuits', type: 'value', hint: 'count' },
+            { name: 'fitArcs', type: 'boolean' },
+            { name: 'fitArcsDegs', type: 'value', hint: 'degrees' },
+            { name: 'fitArcsDMax', type: 'value', hint: 'meters' },
+            { name: 'fitArcsEnd', type: 'value', hint: 'meters' },
+            { name: 'fitArcsStart', type: 'value', hint: 'meters' },
+            { name: 'fitArcsUniformGradient', type: 'boolean' },
+            { name: 'fixCrossings', type: 'boolean' },
+            { name: 'fixSteps', type: 'boolean' },
+            { name: 'flatten', type: 'value', hint: 'start alt end [alt] [trans] [bow] ...' },
+            { name: 'gradientPower', type: 'value', hint: 'number' },
+            { name: 'gradientThreshold', type: 'value', hint: 'meters' },
+            { name: 'keywords', type: 'value', hint: 'word,word,...' },
+            { name: 'laneShift', type: 'value', hint: 'meters' },
+            { name: 'loop', type: 'boolean' },
+            { name: 'loopLeft', type: 'boolean' },
+            { name: 'loopRight', type: 'boolean' },
+            { name: 'maxCornerCropDegs', type: 'value', hint: 'degrees' },
+            { name: 'maxSlope', type: 'value', hint: '%' },
+            { name: 'minCornerCropDegs', type: 'value', hint: 'degrees' },
+            { name: 'minRadius', type: 'value', hint: 'meters' },
+            { name: 'minRadiusEnd', type: 'value', hint: 'meters' },
+            { name: 'minRadiusStart', type: 'value', hint: 'meters' },
+            { name: 'name', type: 'value', hint: 'string' },
+            { name: 'outAndBack', type: 'boolean' },
+            { name: 'outAndBackLap', type: 'boolean' },
+            { name: 'prepend', type: 'value', hint: 'meters' },
+            { name: 'prune', type: 'boolean' },
+            { name: 'pruneD', type: 'value', hint: 'meters' },
+            { name: 'pruneX', type: 'value', hint: 'value' },
+            { name: 'prunedg', type: 'value', hint: 'value' },
+            { name: 'rCrossings', type: 'value', hint: 'meters' },
+            { name: 'rLap', type: 'value', hint: 'meters' },
+            { name: 'rTurnaround', type: 'value', hint: 'meters' },
+            { name: 'rUTurn', type: 'value', hint: 'meters' },
+            { name: 'RGT2BT', type: 'boolean' },
+            { name: 'repeat', type: 'value', hint: 'count' },
+            { name: 'repeatedLaps', type: 'value', hint: 'count' },
+            { name: 'reverse', type: 'boolean' },
+            { name: 'saveCrossingsCSV', type: 'boolean' },
+            { name: 'saveSimplifiedCourse', type: 'boolean' },
+            { name: 'segment', type: 'value', hint: 'start,end,name;...' },
+            { name: 'selectiveLaneShift', type: 'value', hint: 'shift pos shift ...' },
+            { name: 'selectiveSmooth', type: 'value', hint: 'sigma pos sigma ...' },
+            { name: 'selectiveSmoothG', type: 'value', hint: 'sigma pos sigma ...' },
+            { name: 'selectiveSmoothZ', type: 'value', hint: 'sigma pos sigma ...' },
+            { name: 'selectiveSpacing', type: 'value', hint: 'spacing start end ...' },
+            { name: 'shiftEnd', type: 'value', hint: 'meters' },
+            { name: 'shiftSF', type: 'value', hint: 'meters' },
+            { name: 'shiftStart', type: 'value', hint: 'meters' },
+            { name: 'shiftTransition', type: 'value', hint: 'meters' },
+            { name: 'simplifyD', type: 'value', hint: 'meters' },
+            { name: 'simplifyPoints', type: 'boolean' },
+            { name: 'simplifyZ', type: 'value', hint: 'meters' },
+            { name: 'smooth', type: 'value', hint: 'meters' },
+            { name: 'smoothAngle', type: 'value', hint: 'degrees' },
+            { name: 'smoothEnd', type: 'value', hint: 'meters' },
+            { name: 'smoothG', type: 'value', hint: 'meters' },
+            { name: 'smoothStart', type: 'value', hint: 'meters' },
+            { name: 'smoothZ', type: 'value', hint: 'meters' },
+            { name: 'snap', type: 'value', hint: '1 or 2' },
+            { name: 'snapAltitude', type: 'value', hint: 'meters' },
+            { name: 'snapDistance', type: 'value', hint: 'meters' },
+            { name: 'snapTransition', type: 'value', hint: 'meters' },
+            { name: 'spacing', type: 'value', hint: 'meters' },
+            { name: 'splineDegs', type: 'value', hint: 'degrees' },
+            { name: 'splineEnd', type: 'value', hint: 'meters' },
+            { name: 'splineInterpolation', type: 'boolean' },
+            { name: 'splineMaxDegs', type: 'value', hint: 'degrees' },
+            { name: 'splineMaxRatio', type: 'value', hint: 'ratio' },
+            { name: 'splineStart', type: 'value', hint: 'meters' },
+            { name: 'splitAt', type: 'value', hint: 'meters ...' },
+            { name: 'splitNumber', type: 'value', hint: 'number' },
+            { name: 'startCircuitDistance', type: 'value', hint: 'meters' },
+            { name: 'startCircuits', type: 'value', hint: 'count' },
+            { name: 'startTime', type: 'value', hint: 'time string' },
+            { name: 'straight', type: 'value', hint: 'start end ...' },
+            { name: 'straightEnd', type: 'value', hint: 'meters ...' },
+            { name: 'straightStart', type: 'value', hint: 'meters ...' },
+            { name: 'stripSegments', type: 'boolean' },
+            { name: 'timeSplits', type: 'value', hint: 'count' },
+            { name: 'track', type: 'value', hint: 'number' },
+            { name: 'uniformGradient', type: 'value', hint: 'start end [bow] ...' },
+            { name: 'xShift', type: 'value', hint: 'meters' },
+            { name: 'yShift', type: 'value', hint: 'meters' },
+            { name: 'zOffset', type: 'value', hint: 'meters' },
+            { name: 'zScale', type: 'value', hint: 'factor' },
+            { name: 'zScaleRef', type: 'value', hint: 'meters' },
+            { name: 'zShift', type: 'value', hint: 'meters' },
+            { name: 'zShiftEnd', type: 'value', hint: 'meters' },
+            { name: 'zShiftStart', type: 'value', hint: 'meters' },
+        ];
 
         // --- UI helpers ---
         function show(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -269,6 +431,94 @@
             document.getElementById('eyeProcessed').style.opacity = processedVisible ? 1 : 0.3;
         }
 
+        // --- Options panel ---
+        const DEFAULT_OPTIONS = new Set(['auto', 'simplifyPoints', 'fitArcs', 'arcInterpolation']);
+
+        function buildOptionsGrid() {
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
+            OPTIONS.forEach(opt => {
+                const item = document.createElement('div');
+                item.className = 'option-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'opt_' + opt.name;
+                checkbox.className = 'option-checkbox';
+                if (DEFAULT_OPTIONS.has(opt.name)) checkbox.checked = true;
+                checkbox.addEventListener('change', updateOptionsCount);
+
+                const label = document.createElement('label');
+                label.htmlFor = 'opt_' + opt.name;
+                label.className = 'option-label';
+                label.textContent = opt.name;
+
+                item.appendChild(checkbox);
+                item.appendChild(label);
+
+                if (opt.type === 'value') {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = 'optval_' + opt.name;
+                    input.className = 'option-value';
+                    input.placeholder = opt.hint || '';
+                    input.addEventListener('input', () => {
+                        if (input.value.trim()) {
+                            checkbox.checked = true;
+                        }
+                        updateOptionsCount();
+                    });
+                    item.appendChild(input);
+                }
+
+                grid.appendChild(item);
+            });
+            updateOptionsCount();
+        }
+
+        function updateOptionsCount() {
+            const count = document.querySelectorAll('.option-checkbox:checked').length;
+            document.getElementById('optionsCount').textContent = count + ' selected';
+        }
+
+        function getSelectedOptions() {
+            const args = [];
+            OPTIONS.forEach(opt => {
+                const cb = document.getElementById('opt_' + opt.name);
+                if (!cb || !cb.checked) return;
+                if (opt.type === 'boolean') {
+                    args.push('-' + opt.name);
+                } else {
+                    const val = document.getElementById('optval_' + opt.name);
+                    const v = val ? val.value.trim() : '';
+                    if (v) {
+                        args.push('-' + opt.name);
+                        args.push(v);
+                    } else {
+                        args.push('-' + opt.name);
+                    }
+                }
+            });
+            return args;
+        }
+
+        function toggleOptions() {
+            optionsVisible = !optionsVisible;
+            const mapEl = document.getElementById('map');
+            const optPanel = document.getElementById('optionsPanel');
+            const btn = document.getElementById('optionsBtn');
+            if (optionsVisible) {
+                mapEl.classList.add('hidden');
+                optPanel.classList.remove('hidden');
+                btn.classList.add('active');
+            } else {
+                optPanel.classList.add('hidden');
+                mapEl.classList.remove('hidden');
+                btn.classList.remove('active');
+                if (map) { map.invalidateSize(); }
+            }
+        }
+
         // --- File handling ---
         function handleFile(file) {
             if (!file) return;
@@ -347,6 +597,10 @@
 
             const formData = new FormData();
             formData.append('gpx', file);
+            const selectedOpts = getSelectedOptions();
+            if (selectedOpts.length > 0) {
+                formData.append('options', JSON.stringify(selectedOpts));
+            }
 
             try {
                 const resp = await fetch('/process', { method: 'POST', body: formData });
@@ -410,6 +664,13 @@
             endMarkers = [];
             originalVisible = true;
             processedVisible = true;
+            // Reset options view if active
+            if (optionsVisible) {
+                optionsVisible = false;
+                document.getElementById('map').classList.remove('hidden');
+                document.getElementById('optionsPanel').classList.add('hidden');
+                document.getElementById('optionsBtn').classList.remove('active');
+            }
         }
 
         // --- Event listeners ---
@@ -437,6 +698,8 @@
                 handleFile(file);
             });
 
+            buildOptionsGrid();
+            document.getElementById('optionsBtn').addEventListener('click', toggleOptions);
             document.getElementById('processGpxBtn').addEventListener('click', processGPX);
             document.getElementById('downloadBtn').addEventListener('click', downloadProcessed);
             document.getElementById('resetBtn').addEventListener('click', resetApp);

@@ -46,10 +46,37 @@ post '/process' => sub ($c) {
     my ($out_fh, $out_file) = tempfile(SUFFIX => '.gpx', UNLINK => 1);
     close $out_fh;
 
+    # Parse client-supplied options (JSON array of strings)
+    my @user_opts;
+    if (my $opts_json = $c->req->param('options')) {
+        require JSON;
+        my $opts = eval { JSON::decode_json($opts_json) };
+        if (ref $opts eq 'ARRAY') {
+            # Whitelist: only allow options starting with - and values
+            # Filter out dangerous options like -out, -o, -noSave
+            my %blocked = map { $_ => 1 } qw(-out -o --out --o -noSave -nosave -csv -quiet -v -version --version -help --help);
+            my $skip_next = 0;
+            for my $arg (@$opts) {
+                if ($skip_next) { $skip_next = 0; next; }
+                if ($blocked{$arg}) {
+                    # Skip this option and its value if it takes one
+                    $skip_next = 1 if $arg =~ /^-(?:out|o)$/i;
+                    next;
+                }
+                push @user_opts, $arg;
+            }
+        }
+    }
+
+    # If no user options, use defaults
+    if (!@user_opts) {
+        @user_opts = ('--auto', '--simplify', '--fitArcs', '--arcInterpolation');
+    }
+
     # Run processGPX using list form to avoid shell injection
     my @cmd = (
         'perl', $process_gpx,
-        '--auto', '--simplify', '--fitArcs', '--arcInterpolation',
+        @user_opts,
         '-out', $out_file,
         $in_file
     );
