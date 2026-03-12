@@ -96,7 +96,7 @@ get '/version' => sub ($c) {
 };
 
 # Catch-all: return minimal 404 for any unmatched path (shuts down probes fast)
-any '/*path' => { path => '' } => sub ($c) {
+any '/*whatever' => { whatever => '' } => sub ($c) {
     $c->render(text => 'Not Found', status => 404);
 };
 
