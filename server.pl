@@ -3,6 +3,10 @@ use Mojolicious::Lite -signatures;
 use File::Temp qw(tempfile);
 use File::Basename;
 
+# Production mode: skip debug templates on 404s
+app->mode('production');
+app->log->level('warn');
+
 my $MAX_UPLOAD = 5 * 1024 * 1024; # 5 MiB
 
 # Find the processGPX script relative to this server
@@ -89,6 +93,11 @@ $version =~ s/.*version\s*//i;
 
 get '/version' => sub ($c) {
     $c->render(text => $version);
+};
+
+# Catch-all: return minimal 404 for any unmatched path (shuts down probes fast)
+any '/*path' => { path => '' } => sub ($c) {
+    $c->render(text => 'Not Found', status => 404);
 };
 
 # Listen on PORT env var (Cloud Run sets this) or default 8080
