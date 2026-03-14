@@ -253,6 +253,38 @@ body {
     transform: none;
 }
 
+/* Primary action button */
+.primary-button {
+    background: #27ae60;
+}
+
+.primary-button:hover {
+    background: #219a52;
+}
+
+/* Options button - subtle outline style */
+.options-button {
+    background: transparent;
+    color: #7f8c8d;
+    border: 1px solid #bdc3c7;
+    box-shadow: none;
+}
+
+.options-button:hover {
+    background: #f0f0f0;
+    color: #5a6c6e;
+    border-color: #95a5a6;
+    transform: none;
+    box-shadow: none;
+}
+
+.options-button.active {
+    background: #ecf0f1;
+    color: #2c3e50;
+    border-color: #95a5a6;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .reset-button {
     background: #95a5a6;
     margin-top: auto;
@@ -260,20 +292,6 @@ body {
 
 .reset-button:hover {
     background: #7f8c8d;
-}
-
-/* Options button */
-.options-button {
-    background: #8e44ad;
-}
-
-.options-button:hover {
-    background: #7d3c98;
-}
-
-.options-button.active {
-    background: #6c3483;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Options panel */

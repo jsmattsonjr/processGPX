@@ -83,9 +83,9 @@
                         </table>
                     </div>
 
-                    <button id="optionsBtn" class="process-button options-button">Options</button>
-                    <button id="processGpxBtn" class="process-button">processGPX</button>
+                    <button id="processGpxBtn" class="process-button primary-button">processGPX</button>
                     <button id="downloadBtn" class="process-button disabled" disabled>Download processed GPX</button>
+                    <button id="optionsBtn" class="process-button options-button">Options</button>
                     <button id="resetBtn" class="process-button reset-button">Load another file</button>
                 </div>
             </div>
@@ -511,10 +511,12 @@
                 mapEl.classList.add('hidden');
                 optPanel.classList.remove('hidden');
                 btn.classList.add('active');
+                btn.textContent = 'Map';
             } else {
                 optPanel.classList.add('hidden');
                 mapEl.classList.remove('hidden');
                 btn.classList.remove('active');
+                btn.textContent = 'Options';
                 if (map) { map.invalidateSize(); }
             }
         }
@@ -670,6 +672,7 @@
                 document.getElementById('map').classList.remove('hidden');
                 document.getElementById('optionsPanel').classList.add('hidden');
                 document.getElementById('optionsBtn').classList.remove('active');
+                document.getElementById('optionsBtn').textContent = 'Options';
             }
         }
 
