@@ -320,14 +320,61 @@ body {
     margin: 0;
 }
 
-.options-count {
-    font-size: 0.8rem;
+/* Option groups - collapsible sections */
+.option-group {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 5px;
+    margin-bottom: 4px;
+}
+
+.option-group-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(236, 240, 241, 0.5);
+    border-radius: 5px;
+    transition: background 0.15s;
+}
+
+.option-group-header:hover {
+    background: rgba(236, 240, 241, 0.9);
+}
+
+.option-group-arrow {
+    font-size: 0.6rem;
+    margin-right: 8px;
+    transition: transform 0.15s;
     color: #7f8c8d;
 }
 
-.options-grid {
-    columns: 3;
+.option-group.expanded .option-group-arrow {
+    transform: rotate(90deg);
+}
+
+.option-group-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.option-group-count {
+    font-size: 0.75rem;
+    color: #8e44ad;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.option-group-body {
+    display: none;
+    padding: 6px 10px 8px;
+    column-width: 280px;
     column-gap: 20px;
+}
+
+.option-group.expanded .option-group-body {
+    display: block;
 }
 
 .option-item {
@@ -523,9 +570,6 @@ body {
         margin-top: 5px;
     }
 
-    .options-grid {
-        columns: 2;
-    }
 
     .upload-content {
         padding: 20px;
@@ -555,7 +599,4 @@ body {
         font-size: 0.75rem;
     }
 
-    .options-grid {
-        columns: 1;
-    }
 }
