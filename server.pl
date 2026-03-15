@@ -73,7 +73,7 @@ post '/process' => sub ($c) {
         @user_opts = ('--auto', '--simplify', '--fitArcs', '--arcInterpolation');
     }
 
-    # Run processGPX using list form to avoid shell injection
+    # Run processGPX, capturing both stdout and stderr
     my @cmd = (
         'perl', $process_gpx,
         @user_opts,
@@ -81,18 +81,28 @@ post '/process' => sub ($c) {
         $in_file
     );
 
-    my $pid = open(my $pipe, '-|');
+    # Use IPC to capture stdout+stderr together
+    my ($out_read, $out_write);
+    pipe($out_read, $out_write) or do {
+        return $c->render(text => 'Failed to create pipe', status => 422);
+    };
+
+    my $pid = fork();
     if (!defined $pid) {
-        return $c->render(text => 'Failed to fork', status => 500);
+        return $c->render(text => 'Failed to fork', status => 422);
     }
     if ($pid == 0) {
-        # Child: redirect stderr to stdout, exec
-        open(STDERR, '>&', STDOUT);
+        close $out_read;
+        open(STDOUT, '>&', $out_write);
+        open(STDERR, '>&', $out_write);
+        close $out_write;
         exec(@cmd);
         die "exec failed: $!";
     }
-    my $output = do { local $/; <$pipe> };
-    close $pipe;
+    close $out_write;
+    my $output = do { local $/; <$out_read> };
+    close $out_read;
+    waitpid($pid, 0);
     my $exit_code = $? >> 8;
 
     if ($exit_code != 0) {
@@ -104,11 +114,15 @@ post '/process' => sub ($c) {
     }
 
     # Read and return the processed GPX
-    open(my $fh, '<', $out_file) or do {
-        return $c->render(text => 'Failed to read processed output', status => 500);
-    };
-    my $result = do { local $/; <$fh> };
-    close $fh;
+    my $result;
+    if (open(my $fh, '<', $out_file)) {
+        $result = do { local $/; <$fh> };
+        close $fh;
+    }
+    unless ($result && length($result) > 0) {
+        my $msg = $output || 'processGPX produced no output';
+        return $c->render(text => $msg, status => 422);
+    }
 
     # Clean up temp files
     unlink $in_file, $out_file;

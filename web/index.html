@@ -600,9 +600,10 @@
                         if (v) {
                             args.push('-' + opt.name);
                             args.push(v);
-                        } else {
-                            args.push('-' + opt.name);
                         }
+                        // Skip non-boolean options with no value — sending
+                        // -optName with no argument would cause GetOptions to
+                        // consume the next flag or the input filename as the value.
                     }
                 }
             });
