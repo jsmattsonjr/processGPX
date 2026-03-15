@@ -404,6 +404,11 @@ body {
     flex-shrink: 0;
 }
 
+.option-negated .option-label {
+    text-decoration: line-through;
+    color: #95a5a6;
+}
+
 .option-value {
     width: 80px;
     min-width: 50px;
