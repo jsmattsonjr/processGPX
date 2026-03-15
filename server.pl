@@ -49,8 +49,7 @@ post '/process' => sub ($c) {
     # Parse client-supplied options (JSON array of strings)
     my @user_opts;
     if (my $opts_json = $c->req->param('options')) {
-        require JSON;
-        my $opts = eval { JSON::decode_json($opts_json) };
+        my $opts = eval { Mojo::JSON::decode_json($opts_json) };
         if (ref $opts eq 'ARRAY') {
             # Whitelist: only allow options starting with - and values
             # Filter out dangerous options like -out, -o, -noSave
@@ -73,7 +72,7 @@ post '/process' => sub ($c) {
         @user_opts = ('--auto', '--simplify', '--fitArcs', '--arcInterpolation');
     }
 
-    # Run processGPX, capturing both stdout and stderr
+    # Run processGPX using list form, capturing stdout+stderr
     my @cmd = (
         'perl', $process_gpx,
         @user_opts,
@@ -81,33 +80,39 @@ post '/process' => sub ($c) {
         $in_file
     );
 
-    # Use IPC to capture stdout+stderr together
-    my ($out_read, $out_write);
-    pipe($out_read, $out_write) or do {
-        return $c->render(text => 'Failed to create pipe', status => 422);
-    };
+    # Capture stderr into a temp file so we can read it after the process exits
+    my ($err_fh, $err_file) = tempfile(SUFFIX => '.err', UNLINK => 1);
+    close $err_fh;
 
-    my $pid = fork();
+    my $pid = open(my $pipe, '-|');
     if (!defined $pid) {
-        return $c->render(text => 'Failed to fork', status => 422);
+        unlink $err_file;
+        return $c->render(text => 'Failed to run processGPX', status => 422);
     }
     if ($pid == 0) {
-        close $out_read;
-        open(STDOUT, '>&', $out_write);
-        open(STDERR, '>&', $out_write);
-        close $out_write;
+        open(STDERR, '>', $err_file);
         exec(@cmd);
         die "exec failed: $!";
     }
-    close $out_write;
-    my $output = do { local $/; <$out_read> };
-    close $out_read;
-    waitpid($pid, 0);
+    my $stdout = do { local $/; <$pipe> };
+    close $pipe;
     my $exit_code = $? >> 8;
 
+    # Read captured stderr
+    my $stderr = '';
+    if (open(my $efh, '<', $err_file)) {
+        $stderr = do { local $/; <$efh> };
+        close $efh;
+    }
+    unlink $err_file;
+    my $output = $stderr . $stdout;
+
     if ($exit_code != 0) {
-        # Extract meaningful lines from script output (skip blank lines)
-        my @lines = grep { /\S/ } split /\n/, $output;
+        my @lines;
+        for my $line (split /\n/, $output) {
+            last if $line =~ /^Uncaught exception/;
+            push @lines, $line if $line =~ /\S/;
+        }
         my $msg = join("\n", @lines) || "processGPX exited with code $exit_code";
         app->log->error("processGPX failed (exit $exit_code): $output");
         return $c->render(text => $msg, status => 422);

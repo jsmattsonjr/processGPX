@@ -306,7 +306,7 @@
         function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
         function showError(msg) {
-            document.getElementById('errorMessage').textContent = msg;
+            document.getElementById('errorMessage').innerHTML = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
             show('error');
             hide('loading');
         }
