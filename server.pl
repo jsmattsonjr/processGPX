@@ -144,6 +144,16 @@ get '/version' => sub ($c) {
     $c->render(text => $version);
 };
 
+# Serve the HTML manual from the repo root
+get '/manual' => sub ($c) {
+    open(my $fh, '<', "$script_dir/processGPX.html") or do {
+        return $c->render(text => 'Manual not found', status => 404);
+    };
+    my $html = do { local $/; <$fh> };
+    close $fh;
+    $c->render(data => $html, format => 'html');
+};
+
 # Catch-all: return minimal 404 for any unmatched path (shuts down probes fast)
 any '/*whatever' => { whatever => '' } => sub ($c) {
     $c->render(text => 'Not Found', status => 404);

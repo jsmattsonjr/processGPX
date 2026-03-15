@@ -21,7 +21,7 @@ RUN cpanm --notest \
 WORKDIR /app
 
 # Copy application files
-COPY processGPX server.pl ./
+COPY processGPX processGPX.html server.pl ./
 COPY web/ web/
 
 # Make processGPX executable

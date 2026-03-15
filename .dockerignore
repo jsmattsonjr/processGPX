@@ -4,8 +4,8 @@
 *.text
 *.html
 !web/*.html
+!processGPX.html
 makeRandomRoute
 README.md
-processGPX.html
 processGPX.pdf
 processGPX.text
