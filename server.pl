@@ -96,8 +96,11 @@ post '/process' => sub ($c) {
     my $exit_code = $? >> 8;
 
     if ($exit_code != 0) {
+        # Extract meaningful lines from script output (skip blank lines)
+        my @lines = grep { /\S/ } split /\n/, $output;
+        my $msg = join("\n", @lines) || "processGPX exited with code $exit_code";
         app->log->error("processGPX failed (exit $exit_code): $output");
-        return $c->render(text => "Processing failed: $output", status => 500);
+        return $c->render(text => $msg, status => 422);
     }
 
     # Read and return the processed GPX

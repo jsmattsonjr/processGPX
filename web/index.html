@@ -714,8 +714,13 @@
             try {
                 const resp = await fetch('/process', { method: 'POST', body: formData });
                 if (!resp.ok) {
-                    const text = await resp.text();
-                    throw new Error(text || `Server error: ${resp.status}`);
+                    let text = await resp.text();
+                    // Strip HTML if server returned an HTML error page
+                    if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+                        const doc = new DOMParser().parseFromString(text, 'text/html');
+                        text = doc.body ? doc.body.textContent.trim() : '';
+                    }
+                    throw new Error(text || `Server error (${resp.status})`);
                 }
 
                 const result = await resp.json();
