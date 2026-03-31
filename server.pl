@@ -69,7 +69,7 @@ post '/process' => sub ($c) {
 
     # If no user options, use defaults
     if (!@user_opts) {
-        @user_opts = ('--auto', '--simplify', '--fitArcs', '--arcInterpolation');
+        @user_opts = ('--auto', '--simplify');
     }
 
     # Run processGPX using list form, capturing stdout+stderr
