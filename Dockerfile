@@ -16,7 +16,9 @@ RUN cpanm --notest \
     Geo::Gpx \
     XML::Descent \
     Date::Parse \
-    HTTP::Tiny
+    HTTP::Tiny \
+    JSON \
+    File::Slurp
 
 WORKDIR /app
 
