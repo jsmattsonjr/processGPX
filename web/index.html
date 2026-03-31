@@ -189,6 +189,7 @@
                 { name: 'zShift', type: 'value', hint: 'meters' },
                 { name: 'zShiftStart', type: 'value', hint: 'meters' },
                 { name: 'zShiftEnd', type: 'value', hint: 'meters' },
+                { name: 'zShiftTransition', type: 'value', hint: 'meters' },
             ]},
             // Occasionally used
             { label: 'Corners', options: [
@@ -196,6 +197,7 @@
                 { name: 'cornerCropArcFit', type: 'boolean' },
                 { name: 'cornerCropStart', type: 'value', hint: 'meters' },
                 { name: 'cornerCropEnd', type: 'value', hint: 'meters' },
+                { name: 'curvatureSmoothing', type: 'value', hint: 'meters' },
                 { name: 'maxCornerCropDegs', type: 'value', hint: 'degrees' },
                 { name: 'minCornerCropDegs', type: 'value', hint: 'degrees' },
                 { name: 'minRadius', type: 'value', hint: 'meters' },
@@ -288,12 +290,15 @@
                 { name: 'addGradientWaypoints', type: 'boolean' },
                 { name: 'addHeading', type: 'boolean' },
                 { name: 'addSigma', type: 'boolean' },
-                { name: 'curvatureSmoothing', type: 'value', hint: 'meters' },
-                { name: 'curvatureThreshold', type: 'value', hint: '1/meters' },
+                { name: 'cornerSmoothing', type: 'value', hint: 'meters' },
+                { name: 'cornerThreshold', type: 'value', hint: '1/meters' },
                 { name: 'gradientPower', type: 'value', hint: 'number' },
                 { name: 'gradientThreshold', type: 'value', hint: 'meters' },
             ]},
             { label: 'Coordinate Shifts', options: [
+                { name: 'newLat', type: 'value', hint: 'degrees' },
+                { name: 'newLon', type: 'value', hint: 'degrees' },
+                { name: 'newZ', type: 'value', hint: 'meters' },
                 { name: 'xShift', type: 'value', hint: 'meters' },
                 { name: 'yShift', type: 'value', hint: 'meters' },
             ]},
