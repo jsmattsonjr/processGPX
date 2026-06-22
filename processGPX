@@ -294,8 +294,11 @@ sub loadBTRoute {
 #
 sub loadBTJSON {
   my $BTJSON = shift;
-  use File::Slurp;
-  my $s = read_file($BTJSON);
+
+  $/ = undef;
+  open my $fp, "<$BTJSON" or die("ERROR opening file $BTJSON\n");
+  my $s = <$fp>;
+  close $fp;
 
   # Parse JSON data
   my $json = JSON::PP->new();
@@ -9499,6 +9502,9 @@ and for BikeTerra route data (as opposed to GPX files) you need:
 
  JSON         : used for parsing JSON-formatted files.
 
+for processing BikeTerra JSON files, it uses:
+ File::Slurp  : used for reading the file
+
 =head1 SPECIFYING INPUT SOURCES
 
 There are a number of ways to specify input sources.
@@ -11812,7 +11818,7 @@ implies left, a positive number implies right.
 The lane shift is applied starting at 740 meters and ending at 1390
 meters, with a transition calculated from the lane shift.  This is
 applied after all smoothing, but before the lane shifting, and
-importantly, before the route start shift.  
+importantly, before the route start shift.
 
 It's important to check to make sure at the edge of the lane shift
 region the two directions don't get too close, due to the transition.
