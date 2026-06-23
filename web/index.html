@@ -143,7 +143,7 @@
                 { name: 'pruneD', type: 'value', hint: 'meters' },
                 { name: 'pruneX', type: 'value', hint: 'value' },
                 { name: 'prunedg', type: 'value', hint: 'value' },
-                { name: 'simplifyD', type: 'value', hint: 'meters' },
+                { name: 'simplifyD', type: 'value', hint: 'meters', defaultValue: '1' },
                 { name: 'simplifyPoints', type: 'boolean' },
                 { name: 'simplifyZ', type: 'value', hint: 'meters' },
             ]},
@@ -552,6 +552,11 @@
                         input.className = 'option-value';
                         input.placeholder = opt.hint || '';
                         input.dataset.group = gi;
+                        if (opt.defaultValue !== undefined) {
+                            input.value = opt.defaultValue;
+                            checkbox.checked = true;
+                            checkbox.dataset.state = 'on';
+                        }
                         input.addEventListener('input', () => {
                             if (input.value.trim()) {
                                 checkbox.checked = true;
