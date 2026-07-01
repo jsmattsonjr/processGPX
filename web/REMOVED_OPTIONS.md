@@ -33,7 +33,7 @@ The Perl script accepts many aliases for options. Only the canonical
 name is shown in the web UI. Aliases omitted include: `align`,
 `autoSmoothL`,
 `alignAltitude`, `alignDistance`, `alignTransition`, `alignZ`,
-`arcInterpolationMaxAngle`, `autoLap`, `circleStop`, `circuitFromPoint`,
+`arcFit`, `arcInterpolationMaxAngle`, `autoLap`, `circleStop`, `circuitFromPoint`,
 `circuitToPoint`, `circuitsFromPoint`, `circuitsFromPosition`,
 `circuitsToPoint`, `circuitsToPosition`, `closed`, `closedLoop`, `crop`,
 `cropCorners`, `cropEnd`, `cropStart`, `cropStop`, `finishCircuitStart`,
@@ -88,5 +88,4 @@ limited or no utility with current platforms like BikeTerra.
 
 - `extendBack` — creates turnaround at end; doc says "will likely generate
   undesirable results with BikeTerra"
-- `maxSlope` — RGT maximum slope; doc says "retained here only in case
-  another game implements a similar function"
+- `maxSlope` — RGT maximum slope; removed from processGPX in v0.65

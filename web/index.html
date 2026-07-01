@@ -144,6 +144,8 @@
                 { name: 'pruneX', type: 'value', hint: 'value' },
                 { name: 'prunedg', type: 'value', hint: 'value' },
                 { name: 'simplifyD', type: 'value', hint: 'meters' },
+                { name: 'simplifyLambda', type: 'value', hint: 'meters' },
+                { name: 'simplifyMinD', type: 'value', hint: 'meters' },
                 { name: 'simplifyPoints', type: 'boolean' },
                 { name: 'simplifyZ', type: 'value', hint: 'meters' },
             ]},
@@ -183,6 +185,7 @@
                 { name: 'fixSteps', type: 'boolean' },
                 { name: 'flatten', type: 'value', hint: 'start alt end [alt] [trans] [bow] ...' },
                 { name: 'uniformGradient', type: 'value', hint: 'start end [bow] ...' },
+                { name: 'uniformGradientTransition', type: 'value', hint: 'meters' },
                 { name: 'zOffset', type: 'value', hint: 'meters' },
                 { name: 'zScale', type: 'value', hint: 'factor' },
                 { name: 'zScaleRef', type: 'value', hint: 'meters' },
@@ -190,6 +193,8 @@
                 { name: 'zShiftStart', type: 'value', hint: 'meters' },
                 { name: 'zShiftEnd', type: 'value', hint: 'meters' },
                 { name: 'zShiftTransition', type: 'value', hint: 'meters' },
+                { name: 'zStart', type: 'value', hint: 'meters' },
+                { name: 'zEnd', type: 'value', hint: 'meters' },
             ]},
             // Occasionally used
             { label: 'Corners', options: [
@@ -203,6 +208,7 @@
                 { name: 'minRadius', type: 'value', hint: 'meters' },
                 { name: 'minRadiusStart', type: 'value', hint: 'meters' },
                 { name: 'minRadiusEnd', type: 'value', hint: 'meters' },
+                { name: 'selectiveMinRadius', type: 'value', hint: 'meters pos meters ...' },
             ]},
             { label: 'Lane Shifting', options: [
                 { name: 'laneShift', type: 'value', hint: 'meters' },
