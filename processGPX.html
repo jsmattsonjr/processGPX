@@ -4,7 +4,7 @@
 <head>
 <title>processGPX</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@tahoea.local" />
+<link rev="made" href="mailto:root@q9fgv.p1s.plx.sd.apple.com" />
 </head>
 
 <body>
@@ -36,6 +36,7 @@
       <li><a href="#adding-gradient-signs">adding gradient signs</a></li>
       <li><a href="#processing-a-BikeTerra-route-from-the-original-GPX">processing a BikeTerra route from the original GPX</a></li>
       <li><a href="#processing-a-BikeTerra-route-from-route-data">processing a BikeTerra route from route data</a></li>
+      <li><a href="#using-GPXZ-digital-elevation-model">using GPXZ digital elevation model</a></li>
       <li><a href="#specifying-metadata">specifying metadata</a></li>
       <li><a href="#converting-an-RGT-route-to-BikeTerra">converting an RGT route to BikeTerra</a></li>
     </ul>
@@ -56,7 +57,7 @@
 
 <h1 id="VERSION">VERSION</h1>
 
-<p>0.65</p>
+<p>0.67</p>
 
 <h1 id="DESCRIPTION">DESCRIPTION</h1>
 
@@ -109,7 +110,7 @@ Pod::Usage   : for the -help option</code></pre>
 
 <p>For processing BikeTerra routes or GPX files directly you need:</p>
 
-<pre><code>HTTP::Tiny   : used for downloading data from the web.</code></pre>
+<pre><code>HTTP::Tiny  : used for downloading data from the web.</code></pre>
 
 <p>and for BikeTerra route data (as opposed to GPX files) you need:</p>
 
@@ -561,11 +562,19 @@ Pod::Usage   : for the -help option</code></pre>
 <dd>
 
 </dd>
-<dt id="closedLoop"><b><code>-closedLoop</code></b></dt>
+<dt id="closeLap"><b><code>-closeLap</code></b></dt>
 <dd>
 
 </dd>
 <dt id="closeLoop"><b><code>-closeLoop</code></b></dt>
+<dd>
+
+</dd>
+<dt id="closedLap"><b><code>-closedLap</code></b></dt>
+<dd>
+
+</dd>
+<dt id="closedLoop"><b><code>-closedLoop</code></b></dt>
 <dd>
 
 <p>Equivalent to <code>-copyPoint</code> <code>-loop</code>. Negation negates <code>-copyPoint</code> and negates <code>-loop</code> unless it has already been been set.</p>
@@ -857,31 +866,73 @@ Pod::Usage   : for the -help option</code></pre>
 <p><code>-flatten</code> is done &lt;i&gt;after&lt;/i&gt; <code>uniformGradient</code>, so if both are specified and they overlap, the <code>-flatten</code> will replace the <code>-uniformGradient</code>.</p>
 
 </dd>
+<dt id="gpxz"><b><code>-gpxz</code></b></dt>
+<dd>
+
+<p>Specifies that GPXZ elevations will be applied to points. This step is done very early, before any other processing. So if you, for example, apply smoothing or use <code>-join</code> or <code>-split</code> or <code>-crop</code> then the elevation lookup will be done before any of these operations. Additionally, all point smoothing, curve fitting, etc, will happen after elevation substitution.</p>
+
+<p>GPXz requires an API key. There are two ways to provide this. One is to use the <code>GPXZ_API_KEY</code> environment variable. The other is to specify an API key with the <code>-gpxzAPIKey</code> option. Specifying the API key does not initiate GPXZ elevation, however. You still need to specify either this or one of the other options.</p>
+
+<p>GPXZ is prone to issues. For example, it is the terrain elevation, so bridges and tunnels will have elevations associated with the terrain, not the road. So proceed with caution. A recommended process flow is to do GPXZ first, then check results in an editor like GPXMagic, then do processing with a second processGPX step. If you are 100% confident in the GPXz data for a particular route, then of course you can combine smoothing and GPXz in the same step, for example with <code>-processGPX -gpxz -auto</code>.</p>
+
+</dd>
+<dt id="gpxzAPIKey"><b><code>-gpxzAPIKey</code></b></dt>
+<dd>
+
+<p>This specifies a GPXZ API key, for GPXZ elevation substitution. An alternate to using this option is to set the GPXZ_API_KEY environment variable. This option does not initiate GPXZ elevation substitution: you still need to specify one of the other options.</p>
+
+</dd>
+<dt id="gpxzEnd-meters"><b><code>-gpxzEnd</code></b> &lt;meters&gt;</dt>
+<dd>
+
+<p>This specifies a course distance at which to end GPXZ elevation lookup. It by default automatically applies the <code>-gpxz</code> option, so no need to apply both.</p>
+
+<p>Positions are determined from the starting file, before any smoothing, splitting, joining, cropping, etc. Of course positions may differ between this and other tools such as GPXMagic due to the use of different algorithms</p>
+
+<p>If the end is before the start the region will wrap around from the finish to the start.</p>
+
+</dd>
+<dt id="gpxzStart-meters"><b><code>-gpxzStart</code></b> &lt;meters&gt;</dt>
+<dd>
+
+<p>This specifies a course distance at which to begin GPXZ elevation lookup. It by default automatically applies the <code>-gpxz</code> option, so no need to apply both.</p>
+
+<p>Positions are determined from the starting file, before any smoothing, splitting, joining, cropping, etc. Of course positions may differ between this and other tools such as GPXMagic due to the use of different algorithms</p>
+
+<p>If the end is before the start the region will wrap around from the finish to the start.</p>
+
+</dd>
+<dt id="gpxzStop-meters"><b><code>-gpxzStop</code></b> &lt;meters&gt;</dt>
+<dd>
+
+<p>This is a synonym for <code>-GPXZEnd</code>.</p>
+
+</dd>
 <dt id="gAutoSmooth"><b><code>-gAutoSmooth</code></b></dt>
 <dd>
 
 <p>Synonym for <code>-autoSmoothG</code></p>
 
 </dd>
-<dt id="gSmooth"><b><code>-gSmooth</code></b></dt>
+<dt id="gSmooth-meters"><b><code>-gSmooth</code></b> &lt;meters&gt;</dt>
 <dd>
 
 <p>Synonym for <code>-smoothG</code></p>
 
 </dd>
-<dt id="gSigma"><b><code>-gSigma</code></b></dt>
+<dt id="gSigma-meters"><b><code>-gSigma</code></b> &lt;meters&gt;</dt>
 <dd>
 
 <p>Synonym for <code>-smoothG</code></p>
 
 </dd>
-<dt id="gradientPower"><b><code>-gradientPower</code></b></dt>
+<dt id="gradientPower-number"><b><code>-gradientPower</code></b> &lt;number&gt;</dt>
 <dd>
 
 <p>For gradient signs, how much of a power to apply to gradient in determining where signs go. If 0, then all that matters is altitude: put the signs between peaks and valleys. If 1, then a climb which is double the altitude but half the gradient scores the same. The higher this number, the more likely a gradient sign is to go on a short steep pitch versus a longer, more gradual climb containing the short steep pitch.</p>
 
 </dd>
-<dt id="gradientThreshold"><b><code>-gradientThreshold</code></b></dt>
+<dt id="gradientThreshold-meters"><b><code>-gradientThreshold</code> &lt;meters</b>&gt;</dt>
 <dd>
 
 <p>This determines the threshold at which a gradient sign gets put in. The units are meters: a 10% climb needs to gain this much altitude to get a gradient sign. How much altitude steeper or less steep climbs need to be depends on <code>-gradientPower</code>.</p>
@@ -1096,7 +1147,7 @@ Pod::Usage   : for the -help option</code></pre>
 <dt id="outAndBackLap"><b><code>-outAndBackLap</code></b></dt>
 <dd>
 
-<p>This is the same as <code>-outAndBack</code> (read that section as well), except also adds a turn-around to create a lappable course. If you want the turnaround and lap loops to be different than the default radius, then you can specify these separately with -rTurnaround and/or <code>-rLap</code>.</p>
+<p>This is the same as <code>-outAndBack</code> (read that section as well), except also adds a turn-around to create a lappable course. If you want the turnaround and lap loops to be different than the default radius, then you can specify these separately with <code>-rTurnaround</code> and/or <code>-rLap</code>.</p>
 
 <p>This option is not generally needed with BikeTerra which automatically forms turn-around loops at each end of a point-to-point course.</p>
 
@@ -1263,6 +1314,14 @@ Pod::Usage   : for the -help option</code></pre>
 <p>This command is RGT-specific. Since RGT no longer exists it thus serves no purpose. It will be revised if and when another program is identified which develops similar functionality.</p>
 
 </dd>
+<dt id="selectiveGPXZ-meters"><b><code>-selectiveGPXZ</code></b> &lt;meters&gt; ...</dt>
+<dd>
+
+<p>This specifies range(s) over which to apply GPXZ elevation substitution. As with other range options, it alternates start and end positions. Positions are determined from the unprocessed starting file, before any smoothing, cropping, joining, splitting, etc.</p>
+
+<p>You specify alternating start and stop positions. If a stop is before a start, then the interval wraps around the start/finish. If an end position is missing, the interval extends to the end of the route. There is no way for a start position to be missing.</p>
+
+</dd>
 <dt id="selectiveGSmooth-meters"><b><code>-selectiveGSmooth</code></b> &lt;meters&gt; ...</dt>
 <dd>
 
@@ -1328,7 +1387,7 @@ Pod::Usage   : for the -help option</code></pre>
 <dt id="selectiveZSmooth-meters"><b><code>-selectiveZSmooth</code></b> &lt;meters&gt; ...</dt>
 <dd>
 
-<p>an alias for -selectiveSmoothZ</p>
+<p>an alias for <code>-selectiveSmoothZ</code></p>
 
 </dd>
 <dt id="selectiveSpacing-meters"><b><code>-selectiveSpacing</code></b> &lt;meters&gt; ...</dt>
@@ -2462,6 +2521,34 @@ Pod::Usage   : for the -help option</code></pre>
 <p><code>processGPX BikeTerraRoute:12426 -out route.gpx</code></p>
 
 <p>This approach uses a <i>simplified</i> form of the Biketerra route, not the full resolution version, which would require authentication to access.</p>
+
+<p>Better is too download a GPX file from BikeTerra using the &quot;save&quot; option in the route editor, then save as a GPX file. Alternately you can save it as a JSON file and use the BTJSON: prefix to the filename.</p>
+
+<h2 id="using-GPXZ-digital-elevation-model">using GPXZ digital elevation model</h2>
+
+<p>ProcessGPX can replace altitudes of points with the GPXZ digital elevation model API. This requires an API key. The easiest approach is to store the API key in the GPXZ_API_KEY environment variable. An alternative is to provide the API key with the <code>-gpxzAPIKey</code> option.</p>
+
+<p>The digital elevation model provides elevations of specific points. Accuracy and precision of point placements thus becomes very important. Additionally, elevations in bridges and tunnels will not represent the actual road. So this needs to be used with extreme care.</p>
+
+<p>Points re accessed from GPXZ in batches of 512 points. To avoid delays, and avoid charges, it&#39;s best to limit the number of points. ProcessGPX tends to put a high density of points in corners, for example, to provide sufficient resolution of the trajectory through corners. But such a high density of points may not be necessary for realstic gradient determination. So GPXZ is done using the points of the original input file, processing them only to remove duplicate points and &quot;zig-zags&quot; first. But perhaps you want a higher resolution of points, for a finer determination of gradients. If this is the case, you will want to run first with processGPX with the <code>-spacing</code> option, for example. Or you might want to add points in a GPX editor like GPXMagic.</p>
+
+<p>You will almost certainly want to check the results afterwards. In addition to bridges and tunnels, steep canyons, for example, might present a challenge. These can be repaired using the <code>-uniformGradient</code> option in prcessGPX, which allows specification of segments which will use interpolated altitude. Or, again, editing in GPXMagic may be a good approach. This should probably be done before point smoothing, so you would run GPXZ in <code>processGPX</code> first, then edit the elevations, then run processGPX again for smoothing.</p>
+
+<p>Maybe for a long route you won&#39;t want to run GPXZ lookup on the entire route. If so, you can use the <code>-gpxzStart</code> and <code>-gpxzEnd</code> options to specify a single portion to check, or you can use <code>-selectiveGPXZ</code> to provide pairs of start and finishing distances (all in meters) to provide multiple segments to be processed.</p>
+
+<p>If you are sure the GPXZ data are good for the whole route, then you can simply do everything in one shot, for example:</p>
+
+<p><code>processGPX -auto -gpxz inputFile.gpx -o outputFile.gpx</code></p>
+
+<p>But more typically you might use a multi-step process. For example:</p>
+
+<p><code>processGPX -spacing 10 inputFile.gpx -o tmp1.gpx</code></p>
+
+<p><code>processGPX -gpxz tmp1.gpx -o tmp2.gpx</code></p>
+
+<p><code>processGPX -simplify -auto -uniformGradient 1200 1350 5420 5470 tmp2.gpx outputFile.gpx</code></p>
+
+<p>In this example, first the number of points was increased to a 10 meter spacing to provide a minimum gradient resolution. Then GPXZ was done on the entire route. Then finally, two sections were made uniform gradient (after looking up coordinates in a GPX viewer, recognizing distances may differ slightly depending on the assumptions of the editor and processGPX), and typical smoothing was performed.</p>
 
 <h2 id="specifying-metadata">specifying metadata</h2>
 
