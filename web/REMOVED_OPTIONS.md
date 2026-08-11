@@ -18,6 +18,18 @@ context (file selection, output control, terminal output).
 - `spliceDistance` — distance tolerance for splicing; not applicable without `splice`
 - `version` / `v` — print version and exit; version shown in footer
 
+## Third-party API access
+
+GPXZ elevation lookup requires an API key. If the server supplied one
+from the `GPXZ_API_KEY` environment variable, every anonymous upload
+would spend the operator's quota, so the whole family is excluded.
+
+- `gpxz` — enable GPXZ elevation lookup
+- `gpxzAPIKey` — GPXZ API key
+- `gpxzStart` — where to begin GPXZ elevation lookup
+- `gpxzEnd` / `gpxzStop` — where to end GPXZ elevation lookup
+- `selectiveGPXZ` — range(s) of GPXZ substitution
+
 ## Undocumented/internal options
 
 These options exist in the Perl script but are not documented in the
@@ -27,25 +39,39 @@ help text, suggesting they are internal or experimental.
 - `lAutoSmooth` — lateral auto-smoothing (commented as undocumented in script;
   `autoSmoothL` is an alias)
 
+## Documented but not accepted by processGPX
+
+The POD documents these, but `GetOptions` does not register them, so
+passing them makes processGPX exit with "Unknown option". Reported
+upstream; restore them here once the script accepts them.
+
+- `splineMaxRatio` — no `GetOptions` entry at all, so `$splineMaxRatio`
+  is stuck at its default of 3
+- `simplifyMinD` — the POD name; the script actually registers
+  `simplifyDMin`, which is what the web UI sends
+
 ## Aliases
 
 The Perl script accepts many aliases for options. Only the canonical
 name is shown in the web UI. Aliases omitted include: `align`,
-`autoSmoothL`,
 `alignAltitude`, `alignDistance`, `alignTransition`, `alignZ`,
-`arcFit`, `arcInterpolationMaxAngle`, `autoLap`, `circleStop`, `circuitFromPoint`,
-`circuitToPoint`, `circuitsFromPoint`, `circuitsFromPosition`,
-`circuitsToPoint`, `circuitsToPosition`, `closed`, `closedLoop`, `crop`,
-`cropCorners`, `cropEnd`, `cropStart`, `cropStop`, `finishCircuitStart`,
+`arcFit`, `arcInterpolationMaxAngle`, `autoLap`, `autoSmoothL`,
+`circleStop`, `circuitFromPoint`, `circuitsFromPoint`,
+`circuitsFromPosition`, `circuitsToPoint`, `circuitsToPosition`,
+`circuitToPoint`, `closed`, `closedLap`, `closedLoop`, `closeLap`,
+`crop`, `cropCorners`, `cropEnd`, `cropStart`, `cropStop`,
+`distanceSplits`, `EGT2BikeTerra`, `finishCircuitStart`,
 `fitArcsAngle`, `gAutoSmooth`, `gSigma`, `gSmooth`, `interpolate`,
 `laneShiftEnd`, `laneShiftSF`, `laneShiftStart`, `laneShiftTransition`,
-`lap`, `loopL`, `loopR`, `maxCornerCropAngle`, `minCornerCropAngle`,
-`outAndBackLoop`, `pruneDistance`, `pruneGradient`, `pruneSine`,
+`lap`, `lat`, `lon`, `loopL`, `loopR`, `maxCornerCropAngle`,
+`minCornerCropAngle`, `newEle`, `outAndBackLoop`, `pruneDistance`,
+`pruneGradient`, `pruneSine`, `RGTtoBikeTerra`, `RGTtoBT`,
 `segments`, `selectiveGSmooth`, `selectiveZSmooth`, `shiftX`, `shiftY`,
-`shiftZ`, `shiftZEnd`, `shiftZStart`, `sigma`, `sigmag`, `sigmaz`,
-`simplify`, `simplifyAltitude`, `simplifyDistance`, `smoothing`, `snapZ`,
-`splineAngle`, `splineMaxAngle`, `startCircuitEnd`, `straightStop`,
-`title`, `zAutoSmooth`, `zScaleReference`, `zSigma`, `zSmooth`.
+`shiftZ`, `shiftZEnd`, `shiftZStart`, `shiftZTransition`, `sigma`,
+`sigmag`, `sigmaz`, `simplify`, `simplifyAltitude`, `simplifyDistance`,
+`smoothing`, `snapZ`, `splineAngle`, `splineMaxAngle`,
+`startCircuitEnd`, `straightStop`, `title`, `zAutoSmooth`,
+`zScaleReference`, `zSigma`, `zSmooth`.
 
 ## Secondary output files
 
