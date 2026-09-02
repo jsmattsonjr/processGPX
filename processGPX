@@ -74,8 +74,11 @@ use Pod::Usage;
 # version 0.68: minor bug fixes, -stripWaypoints, increase resolution on smoothing kernel, removed fixCrossings from auto
 # version 0.69: minor bug in formula for latlng2dxdy (cos(dlat) taken outside ())
 # version 0.70: fixed -stripWaypoints
+# version 0.71: fixed issue with transition in selective smoothing
+# version 0.72: fixed issue with -rUTurn combined with -autoSpacing (which makes very fine point spacing after smoothing)
+# version 0.73: further fixes to turn-around loop
 
-my $version = "0.70"; # make sure this matches pod value
+my $version = "0.73"; # make sure this matches pod value
 
 my $number_regexp =
   '[+-]?\d*(?:\d|(?:\.\d+))(?:[eE][-+]?\d+)?';
@@ -193,7 +196,7 @@ sub loadGPX {
   # Parse GPX from open file
   $gpx->waypoints_delete_all() if ($stripWaypoints);
   my $waypoints = $gpx->waypoints();
-  
+
   my $tracks    = $gpx->tracks();
 
   my $track = $tracks->[$trkIndex];
@@ -538,7 +541,7 @@ sub smoothWindow {
   my $s = $var{s} // die("smoothWindow called without distance s\n");
   my $start = $var{start};
   my $end = $var{end};
-  my $transition = $var{transition};
+  my $transition = $var{transition} // 20;
   my $transitionStart = $var{transitionStart} // $transition;
   my $transitionEnd = $var{transitionEnd} // $transition // $transitionStart;
   my $isLoop = $var{isLoop} // 0;
@@ -1727,6 +1730,24 @@ sub removeDuplicatePoints {
   return \@pNew;
 }
 
+
+#
+# set minimum spacing between poionts
+#
+sub setMinSpacing {
+  my %var = @_;
+  my $points = $var{points} // [];
+  my $spacing = $var{spacing} // 1;
+  return $points
+    if ($spacing <= 0 || scalar(@$points) < 3);
+  my @newPoints = ($points->[0]);
+  for my $i ( 1 .. $#$points ) {
+    push @newPoints, $points->[$i]
+      if ((latlngDistance($newPoints[-1], $points->[$i]) >= $spacing));
+  }
+  return \@newPoints;
+}
+ 
 sub checkAutoLoop {
   my %var = @_;
   my $points = $var{points} // [];
@@ -6842,7 +6863,7 @@ my $reverse = 0;       # whether to reverse the course
 my $RGT2BT = 0;        # apply course adjustments to convert RGT to BikeTerra
 my $rLap;              # if the route is turned into an out-and-back, the radius of the return loop
 my $rTurnaround;       # if the route is turned into an out-and-back, the radius of the outer loop
-my $rUTurn;            # if the route is turned into an out-and-back, the radius of the two loops
+my $rUTurn;            # radius of auto-detected loops
 my $saveCrossingsCSV;           # whether to save a CSV file with the crossings
 my $saveSimplifiedCourse = 0;   # whether to save a CSV file of a simplfied course, if generated (debugging)
 my $shiftEnd;          # where to end land shifting (define: don't end it)
@@ -8089,7 +8110,7 @@ for my $file ( @files ) {
 
     if (! defined  $rUTurn) {
       $rUTurn = 6;
-      note("setting -RUTurn $rUTurn (meters) ...\n");
+      note("setting -rUTurn $rUTurn (meters) ...\n");
     }
 
     if (! defined $snap) {
@@ -9048,6 +9069,9 @@ for my $file ( @files ) {
     my $pointPopped = pointsAreClose($points->[0], $points->[-1]);
     pop @$points if ($pointPopped);
 
+    # set minimum spacing between points (algorithm doesn't like very close points)
+    # $points = setMinSpacing(points=> $points, spacing=> 1);
+    
     # two sweeps: one for 3-point turns, the next for 4-point turns.
     for my $turnType (3, 4) {
       my @pNew = ();
@@ -9063,16 +9087,17 @@ for my $file ( @files ) {
         }
 
         # select points: check for duplicate points
+	my $rMin = 1;
         my $h = ($i - 1) % @$points;
-        $h = ($h - 1) % @$points if (($h != $i) && pointsAreClose($points->[$h], $points->[$i]));
+        $h = ($h - 1) % @$points while (($h != $i) && pointsAreClose($points->[$h], $points->[$i], $rMin));
         my $j = ($i + 1) % @$points;
         my $k = ($j + 1) % @$points;
-        if (($j != $i) && pointsAreClose($points->[$j], $points->[$i])) {
+        while (($j != $i) && pointsAreClose($points->[$j], $points->[$i], $rMin)) {
           $j = ($j + 1) % @$points;
           $k = ($k + 1) % @$points;
         }
-        $k = ($k + 1) % @$points if (($k != $i) && pointsAreClose($points->[$j], $points->[$k]));
-
+        $k = ($k + 1) % @$points
+          while (($k != $i) && pointsAreClose($points->[$j], $points->[$k], $rMin));
         if (
             ($turnType == 3) &&
             ($isLoop || ($i < $#$points)) &&
@@ -9089,13 +9114,14 @@ for my $file ( @files ) {
           my $loop = makeLoop(points=> [$points->[$i], $points->[$i]], direction=> $dir, radius=> $rUTurn, defaultSign=> $loopSign, segmentNames=> \%segmentName);
           push @pNew, @$loop;
           push @pNew, \%{$points->[$i]}; # put a copy of the turn-around point here
+	  $i = $j;
         } elsif (
                  ($turnType == 4) &&
                  ($isLoop || (($i > 0) && ($i < $#$points - 1))) &&
                  UTurnCheck($points->[$h], $points->[$i], $points->[$j], $points->[$k]) &&
-                 (latlngDistance($points->[$i], $points->[$j]) < 20)
-                 # (latlngDotProduct($points->[$h], $points->[$i], $points->[$i], $points->[$j]) < 0.9) &&
-                 # (latlngDotProduct($points->[$i], $points->[$j], $points->[$j], $points->[$k]) < 0.9) &&
+                 (latlngDistance($points->[$i], $points->[$j]) < 20) &&
+                 (latlngDotProduct($points->[$h], $points->[$i], $points->[$i], $points->[$j]) < 0.95) &&
+                 (latlngDotProduct($points->[$i], $points->[$j], $points->[$j], $points->[$k]) < 0.95)
                 ) {
           my $d1 = latlngDirection($points->[$h], $points->[$i]);
           my $d2 = latlngDirection($points->[$k], $points->[$j]);
@@ -9107,6 +9133,7 @@ for my $file ( @files ) {
                "   directions = ", $d1 / $deg2rad, ", ", $d2 / $deg2rad, "\n");
           my $dir = averageAngles($d1, $d2);
           my $loop = makeLoop(points=> [$points->[$i], $points->[$j]], direction=> $dir, radius=> $rUTurn, defaultSign=> $loopSign, segmentNames=> \%segmentName);
+
           push @pNew, @$loop;
         }
         $i ++;
@@ -9465,7 +9492,6 @@ for my $file ( @files ) {
         delete $wp->{name}
           if ((exists $wp->{name}) && (defined $wp->{name}) && ($wp->{name} eq ""));
       }
-      warn("deleting existing waypoints first\n");
       $gpx->waypoints_delete_all();
       $gpx->waypoints_add(@$waypoints);
     }
@@ -9640,7 +9666,7 @@ B<C<processGPX>> [options] <input files>
 
 =head1 VERSION
 
-0.70
+0.73
 
 =head1 DESCRIPTION
 
