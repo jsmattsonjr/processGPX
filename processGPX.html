@@ -4,7 +4,7 @@
 <head>
 <title>processGPX</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@hb8g7.p1s.plx.sd.apple.com" />
+<link rev="made" href="mailto:root@pjr78.p1s.plx.sd.apple.com" />
 </head>
 
 <body>
@@ -57,7 +57,7 @@
 
 <h1 id="VERSION">VERSION</h1>
 
-<p>0.73</p>
+<p>0.75</p>
 
 <h1 id="DESCRIPTION">DESCRIPTION</h1>
 
@@ -1232,6 +1232,24 @@ Pod::Usage   : for the -help option</code></pre>
 <p>Number of copies of the route to append to the end of the course. This should naturally be applied to a route which is a lappable course. Normally lappable courses in RGT are modeled with only a single lap, but there are several reasons one might want to artificially create multiple laps by repeating the lap. One might be if one is going to add a lead-in or finishing leg to the course, for example with the <code>-join</code> option, which would be applied after this command is executed. Another might be if you wanted timed segments only on selective laps, or overlapping the boundary between laps. But in most cases multi-lap races are better modeled by specifying the number of laps at event creation and using a route which covers only one of the laps.</p>
 
 </dd>
+<dt id="removeSpikes"><b><code>-removeSpikes</code></b></dt>
+<dd>
+
+<p>This specifies an algorithm to remove elevation spikes should be run early in the process, immediately after optional GPXZ processing. It looks for triplets of points where the gradient changes by at least <code>-spikeGradient</code> and the spacing is no more than <code>-spikeSpacing</code>. This is inspired by GPXZ anomalies where a point may deviate from the road with a steep transverse slope. It should not be used unless there is evidence of an issue, so is not part of <code>-auto</code>.</p>
+
+</dd>
+<dt id="removeSpikesEnd-meters"><b><code>-removeSpikesEnd</code></b> &lt;meters&gt;</dt>
+<dd>
+
+<p>Where on the course to stop removing spikes (default: end of route)</p>
+
+</dd>
+<dt id="removeSpikesStart"><b><code>-removeSpikesStart</code></b></dt>
+<dd>
+
+<p>Where on the course to start removing spikes (default: start of route).</p>
+
+</dd>
 <dt id="repeatedLaps-count"><b><code>-repeatedLaps</code></b> &lt;count&gt;</dt>
 <dd>
 
@@ -1664,6 +1682,18 @@ Pod::Usage   : for the -help option</code></pre>
 <dd>
 
 <p>As an early stage to processing, interpolate points on the route so that the spacing between points is no more than approximately this spacing. If <code>-smoothing</code> and/or <code>-smoothingz</code> are specified, then smoothing doesn&#39;t work over distances much smaller than this spacing. -autospacing is another option, in which case the code will selectively interpolate points near points where the direction is changing.</p>
+
+</dd>
+<dt id="spikeGradient-percent"><b><code>-spikeGradient</code></b> &lt;percent&gt;</dt>
+<dd>
+
+<p>A spike is a series of 3 points where the gradient changes by at least <code>-spikeGradient</code> and the minimum of the two spaces is at least <code>-spikeSpacing</code>. These are removed with the <code>-removeSpikes</code> option.</p>
+
+</dd>
+<dt id="spikeSpacing-meters"><b><code>-spikeSpacing</code></b> &lt;meters&gt;</dt>
+<dd>
+
+<p>A spike is a series of 3 points where the gradient changes by at least <code>-spikeGradient</code> and the minimum of the two spaces is at least <code>-spikeSpacing</code>. These are removed with the <code>-removeSpikes</code> option.</p>
 
 </dd>
 <dt id="splice-filenames"><b><code>-splice</code></b> &lt;filenames&gt;</dt>
@@ -2359,7 +2389,7 @@ Pod::Usage   : for the -help option</code></pre>
 <dt id="auto2"><b><code>-auto</code></b></dt>
 <dd>
 
-<p>This specifies a reasonable set of smoothing parameters.</p>
+<p>This specifies a reasonable set of smoothing parameters, as well as <code>-simplify</code>.</p>
 
 </dd>
 <dt id="simplify2"><b><code>-simplify</code></b></dt>
