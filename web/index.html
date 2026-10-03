@@ -176,6 +176,7 @@
                 { name: 'splineDegs', type: 'value', hint: 'degrees' },
                 { name: 'splineInterpolation', type: 'boolean' },
                 { name: 'splineMaxDegs', type: 'value', hint: 'degrees' },
+                { name: 'splineMaxRatio', type: 'value', hint: 'ratio' },
                 { name: 'splineStart', type: 'value', hint: 'meters' },
                 { name: 'splineEnd', type: 'value', hint: 'meters' },
             ]},
@@ -183,6 +184,11 @@
             { label: 'Elevation', options: [
                 { name: 'fixSteps', type: 'boolean' },
                 { name: 'flatten', type: 'value', hint: 'start alt end [alt] [trans] [bow] ...' },
+                { name: 'removeSpikes', type: 'boolean' },
+                { name: 'removeSpikesStart', type: 'value', hint: 'meters' },
+                { name: 'removeSpikesEnd', type: 'value', hint: 'meters' },
+                { name: 'spikeGradient', type: 'value', hint: 'percent' },
+                { name: 'spikeSpacing', type: 'value', hint: 'meters' },
                 { name: 'uniformGradient', type: 'value', hint: 'start end [bow] ...' },
                 { name: 'uniformGradientTransition', type: 'value', hint: 'meters' },
                 { name: 'zOffset', type: 'value', hint: 'meters' },
@@ -465,7 +471,7 @@
         }
 
         // --- Options panel ---
-        const DEFAULT_OPTIONS = new Set(['auto', 'simplifyPoints']);
+        const DEFAULT_OPTIONS = new Set(['auto']);
 
         function buildOptionsGrid() {
             const container = document.getElementById('optionsGrid');

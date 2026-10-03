@@ -39,17 +39,6 @@ help text, suggesting they are internal or experimental.
 - `lAutoSmooth` — lateral auto-smoothing (commented as undocumented in script;
   `autoSmoothL` is an alias)
 
-## Documented but not accepted by processGPX
-
-The POD documents these, but `GetOptions` does not register them, so
-passing them makes processGPX exit with "Unknown option". Reported
-upstream; restore them here once the script accepts them.
-
-- `splineMaxRatio` — no `GetOptions` entry at all, so `$splineMaxRatio`
-  is stuck at its default of 3
-- `simplifyMinD` — the POD name; the script actually registers
-  `simplifyDMin`, which is what the web UI sends
-
 ## Aliases
 
 The Perl script accepts many aliases for options. Only the canonical
