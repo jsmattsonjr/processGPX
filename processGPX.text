@@ -5,7 +5,7 @@ SYNOPSIS
     "processGPX" [options] <input files>
 
 VERSION
-    0.73
+    0.75
 
 DESCRIPTION
     processGPX is a series of algorithms to improve and create GPX files, in
@@ -1410,6 +1410,22 @@ OPTIONS
         the number of laps at event creation and using a route which covers
         only one of the laps.
 
+    "-removeSpikes"
+        This specifies an algorithm to remove elevation spikes should be run
+        early in the process, immediately after optional GPXZ processing. It
+        looks for triplets of points where the gradient changes by at least
+        "-spikeGradient" and the spacing is no more than "-spikeSpacing".
+        This is inspired by GPXZ anomalies where a point may deviate from
+        the road with a steep transverse slope. It should not be used unless
+        there is evidence of an issue, so is not part of "-auto".
+
+    "-removeSpikesEnd" <meters>
+        Where on the course to stop removing spikes (default: end of route)
+
+    "-removeSpikesStart"
+        Where on the course to start removing spikes (default: start of
+        route).
+
     "-repeatedLaps" <count>
         This is equivalent to "-repeat" except with a number one less. For
         example, "-repeatedLaps 10" and "-repeat 9" are the same. Each
@@ -1982,6 +1998,16 @@ OPTIONS
         spacing. -autospacing is another option, in which case the code will
         selectively interpolate points near points where the direction is
         changing.
+
+    "-spikeGradient" <percent>
+        A spike is a series of 3 points where the gradient changes by at
+        least "-spikeGradient" and the minimum of the two spaces is at least
+        "-spikeSpacing". These are removed with the "-removeSpikes" option.
+
+    "-spikeSpacing" <meters>
+        A spike is a series of 3 points where the gradient changes by at
+        least "-spikeGradient" and the minimum of the two spaces is at least
+        "-spikeSpacing". These are removed with the "-removeSpikes" option.
 
     "-splice" <filenames>
         Starting with the points of the first file, find compatible segments
@@ -2699,7 +2725,8 @@ EXAMPLES
     Options here include:
 
     "-auto"
-        This specifies a reasonable set of smoothing parameters.
+        This specifies a reasonable set of smoothing parameters, as well as
+        "-simplify".
 
     "-simplify"
         Reduce the number of points after processing beyond that which
